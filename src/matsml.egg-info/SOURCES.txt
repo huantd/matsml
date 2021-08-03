@@ -1,0 +1,8 @@
+LICENSE
+README.md
+pyproject.toml
+setup.cfg
+src/matsml.egg-info/PKG-INFO
+src/matsml.egg-info/SOURCES.txt
+src/matsml.egg-info/dependency_links.txt
+src/matsml.egg-info/top_level.txt
