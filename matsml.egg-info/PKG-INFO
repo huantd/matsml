@@ -7,15 +7,12 @@ Author: Huan Tran
 Author-email: huantd@gmail.com
 License: UNKNOWN
 Project-URL: Bug Tracker, https://github.com/pypa/sampleproject/issues
+Description: # matsml
+        Machine learning toolkit for materials science
+        
 Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
 Requires-Python: >=3.6
 Description-Content-Type: text/markdown
-License-File: LICENSE
-
-# matsml
-Machine learning toolkit for materials science
-
-
