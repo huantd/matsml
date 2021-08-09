@@ -4,6 +4,10 @@ setup.cfg
 setup.py
 matsml/__init__.py
 matsml/data.py
+matsml/fingerprint.py
+matsml/init.py
+matsml/models.py
+matsml/params.py
 matsml.egg-info/PKG-INFO
 matsml.egg-info/SOURCES.txt
 matsml.egg-info/dependency_links.txt

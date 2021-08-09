@@ -1,2 +1,2 @@
 # matsml
-Machine learning toolkit for materials science
+A machine learning toolkit for materials science

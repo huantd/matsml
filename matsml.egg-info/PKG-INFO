@@ -1,18 +1,18 @@
 Metadata-Version: 2.1
 Name: matsml
 Version: 0.0.1
-Summary: A machine learning toolkit for materials science
+Summary: A toolkit for easy machine learning in materials science
 Home-page: https://github.com/huantd/matsml.git
 Author: Huan Tran
 Author-email: huantd@gmail.com
 License: UNKNOWN
 Project-URL: Bug Tracker, https://github.com/pypa/sampleproject/issues
 Description: # matsml
-        Machine learning toolkit for materials science
+        A machine learning toolkit for materials science
         
 Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3
-Classifier: License :: OSI Approved :: MIT License
+Classifier: License :: OSI Approved :: GNU
 Classifier: Operating System :: OS Independent
 Requires-Python: >=3.6
 Description-Content-Type: text/markdown
