@@ -6,12 +6,13 @@ import tensorflow as tf
 from sklearn.decomposition import PCA
 from scipy.stats import binned_statistic_2d
 from sklearn import preprocessing
+from matsml.data import ProcessData
+
 from keras.layers import Dense, InputLayer
 from keras.models import Sequential
 from sklearn.model_selection import KFold
-from sklearn.metrics import mean_squared_error, r2_score
+#from sklearn.metrics import mean_squared_error, r2_score
 from keras.optimizers import Nadam
-from matsml.data import ProcessData
 
 def prepare_data(data_params):
     """ Load data, scale data, and split data => train/test sets """
@@ -45,6 +46,7 @@ class FCNeuralNet:
     data_params:     Dictionary, obtained from ProcessData, all needed for data
 
     """
+
     def __init__(self,data_params,model_params):
         self.data_params = data_params
         self.model_params = model_params
@@ -65,7 +67,7 @@ class FCNeuralNet:
         print ('  A fully connected NeuralNet selected.')
 
     def get_data(self):
-        """ Import data to FCNeuralNet """
+        """ Import train/test data and parameters to FCNeuralNet """
         
         # Data preprocessing
         data_dict = prepare_data(data_params=self.data_params)
@@ -109,15 +111,16 @@ class FCNeuralNet:
         return x_cv_train,x_cv_test,y_cv_train,y_cv_test
             
     def train(self):
-        """ Build, train, test, and save model """
+        """ Build, train, test, and save model based in FCNeuralNet"""
 
         self.get_data()
         x_train_fp=np.array(self.train_set[self.x_cols]).astype(np.float32)
         x_test_fp=np.array(self.test_set[self.x_cols]).astype(np.float32)
 
         TEMPLATE = \
-            "    cv,rmse_train,rmse_test,opt_rmse: {0:d} {1:.6f} {2:.6f} {3:.6f}"
+            "      cv,rmse_train,rmse_test,opt_rmse: {0:d} {1:.6f} {2:.6f} {3:.6f}"
 
+        print ('  - Building model: FCNeuralNet')
         nn_model = Sequential()
 
         # Input layer
@@ -147,6 +150,7 @@ class FCNeuralNet:
         ncv = 0
         ncv_opt = ncv
 
+        print ('  - Training model with cross validation')
         for train_cv,test_cv in kf:
 
             x_cv_train, x_cv_test, y_cv_train, y_cv_test = \
@@ -164,23 +168,24 @@ class FCNeuralNet:
                     .reshape(len(test_cv)*self.y_dim)-y_cv_test_md)**2))
 
             if rmse_cv_test < opt_rmse:
-                opt_rmse = rmse_cv_test
+                opt_rmse=rmse_cv_test
                 nn_model.save_weights(self.file_model)
-                ncv_opt = ncv
+                ncv_opt=ncv
 
             print (TEMPLATE.format(ncv,rmse_cv_train,rmse_cv_test,opt_rmse))
-            ncv = ncv + 1
+            ncv=ncv+1
 
         print('    Optimal ncv: ',ncv_opt,"; optimal NET saved.")
         
         nn_model.load_weights(self.file_model)
 
-        # Make predictions on the training and test datasets
+        # A dictionary of scaling parameters
         scaling_dic = {'id_col':self.id_col,'y_cols':self.y_cols,
                 'onehot_cols':self.onehot_cols,'y_org':self.y_org,
                 'y_scaling':self.y_scaling,'y_mean':self.y_mean,
                 'y_std':self.y_std,'y_min':self.y_min,'y_max':self.y_max}
 
+        # Make predictions on the training and test datasets
         y_train_md = nn_model.predict(x_train_fp)
         predicted_train_set = pd.concat([self.train_set[self.id_col+
             self.onehot_cols],self.train_set[self.y_cols],
@@ -191,7 +196,7 @@ class FCNeuralNet:
             self.y_cols+self.y_md_cols
 
         unscaled_train_set=ProcessData.unscale_y(predicted_train_set,
-                scaling_dic,'training')
+            scaling_dic,'training')
 
         unscaled_train_set.to_csv('training.csv',index=False)
 
@@ -206,7 +211,7 @@ class FCNeuralNet:
                 self.y_cols+self.y_md_cols
 
             unscaled_test_set=ProcessData.unscale_y(predicted_test_set,
-                    scaling_dic,'test')
+                scaling_dic,'test')
             
             unscaled_test_set.to_csv('test.csv',index=False)
 

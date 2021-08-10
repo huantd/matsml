@@ -1,5 +1,8 @@
 # Copyright Huan Tran (huantd@gmail.com), 2021
-
+#
+# Works with data
+#
+#
 import numpy as np
 from sklearn.decomposition import PCA
 from scipy.stats import binned_statistic_2d
@@ -30,7 +33,6 @@ class ProcessData:
 
         comment_cols = self.data_params['comment_cols']
         self.comment_cols = comment_cols
-
 
         fingerprint_data = pd.read_csv(data_file,delimiter=',',header=0,
                 low_memory=False)
@@ -84,25 +86,25 @@ class ProcessData:
             xmin = np.amin(np.array(x))
             x_scaled[:,:] = -1+2*(x[:,:]-xmin)/(xmax-xmin) 
         elif self.x_scaling == 'normalize':
-            x_scaled = preprocessing.normalize(x.drop(self.id_col,axis=1), 
+            x_scaled=preprocessing.normalize(x.drop(self.id_col,axis=1), 
                     norm='l2')
         elif self.x_scaling == 'minmax':
-            min_max_scaler = preprocessing.MinMaxScaler()
-            x_scaled = min_max_scaler.fit_transform(x.drop(self.id_col,axis=1))
+            min_max_scaler=preprocessing.MinMaxScaler()
+            x_scaled=min_max_scaler.fit_transform(x.drop(self.id_col,axis=1))
         elif self.x_scaling == 'quantile':
-            quant_transf = preprocessing.QuantileTransformer(random_state=0)
-            x_scaled = quant_transf.fit_transform(x.drop(self.id_col,axis=1))
+            quant_transf=preprocessing.QuantileTransformer(random_state=0)
+            x_scaled=quant_transf.fit_transform(x.drop(self.id_col,axis=1))
         elif self.x_scaling == 'yeo-johnson':
-            pt = preprocessing.PowerTransformer(method='yeo-johnson', 
+            pt=preprocessing.PowerTransformer(method='yeo-johnson', 
                     standardize=False)
-            x_scaled = pt.fit_transform(x.drop(self.id_col,axis=1))
+            x_scaled=pt.fit_transform(x.drop(self.id_col,axis=1))
         elif self.x_scaling == 'none':
-            x_scaled = x.drop(self.id_col,axis=1)
+            x_scaled=x.drop(self.id_col,axis=1)
         
         # Convert nparray back pandas and stack the ID column
-        x_scaled_df = pd.DataFrame(x_scaled,columns = self.x_cols)
-        x_scaled_df[self.id_col] = x[self.id_col]
-        self.x_scaled = x_scaled_df
+        x_scaled_df=pd.DataFrame(x_scaled,columns=self.x_cols)
+        x_scaled_df[self.id_col]=x[self.id_col]
+        self.x_scaled=x_scaled_df
 
         # Work with y data
         y = self.y
@@ -154,14 +156,14 @@ class ProcessData:
             for i, j, onehot in ((a,b,c) for a in range(len(y)) for b in 
                     range(y_dim) for c in onehot_cols):
                 this_row = y.iloc[i]
-                if this_row[onehot].astype(int) == 1:
-                    ymean = float(y_mean.loc[y_mean['onehot'] == onehot][y_cols[j]])
-                    ystd = float(y_std.loc[y_std['onehot'] == onehot][y_cols[j]])
-                    ymin = float(y_min.loc[y_min['onehot']==onehot][y_cols[j]])
-                    ymax = float(y_max.loc[y_max['onehot'] == onehot][y_cols[j]])
-                    if str(self.y_scaling) == 'normal':
+                if this_row[onehot].astype(int)==1:
+                    ymean=float(y_mean.loc[y_mean['onehot']==onehot][y_cols[j]])
+                    ystd=float(y_std.loc[y_std['onehot']==onehot][y_cols[j]])
+                    ymin=float(y_min.loc[y_min['onehot']==onehot][y_cols[j]])
+                    ymax=float(y_max.loc[y_max['onehot']==onehot][y_cols[j]])
+                    if str(self.y_scaling)=='normalize':
                         y_scaled.at[i,y_cols[j]]=(y.at[i,y_cols[j]]-ymean)/ystd
-                    elif str(self.y_scaling) == 'minmax':
+                    elif str(self.y_scaling)=='minmax':
                         y_scaled.at[i,y_cols[j]]=(y.at[i,y_cols[j]]-ymin)/(ymax-ymin)
 
             self.y_scaled = y_scaled
@@ -179,7 +181,7 @@ class ProcessData:
             y_scaled = pd.DataFrame(columns=self.id_col+y_cols)
             for i, j in ((a,b) for a in range(len(y)) for b in range(y_dim)):
                 y_scaled[self.id_col] = y[self.id_col] 
-                if str(self.y_scaling) == 'normal':
+                if str(self.y_scaling) == 'normalize':
                     delta_y=y.at[i,y_cols[j]]-self.y_mean.at[0,y_cols[j]]
                     y_scaled.at[i,y_cols[j]]=delta_y/self.y_std.at[0,y_cols[j]]
                 elif str(self.y_scaling) == 'minmax':
@@ -194,9 +196,13 @@ class ProcessData:
     def prepare_train_test_data(self):
         ''' Prepare train and test sets using the sampling method specified'''
 
+
+        print ('    Prepare train/test sets: ', self.data_params['sampling'])
+
         self.n_trains = int(self.data_params['n_trains']*self.data_size)
         self.n_tests = self.data_size - self.n_trains
         self.sampling = self.data_params['sampling']
+
         id_col = self.id_col
         scaled_data = self.scaled_data
         if self.sampling == 'random':
@@ -206,13 +212,15 @@ class ProcessData:
                     if idx not in train_set_ids]
         else:
             raise ValueError \
-                    ('  ERROR: only random sampling accepted in this version.')
+                    ('  ERROR: only random sampling in this version.')
         self.train_set=scaled_data[scaled_data[id_col[0]].isin(train_set_ids)]
         self.test_set=scaled_data[scaled_data[id_col[0]].isin(test_set_ids)]
 
 
     def unscale_y(scaled_y_data, scaling_dic,message):
         """ Unscale the y data """
+
+        print ('    Unscaling y:', scaling_dic['y_scaling'])
 
         id_col = scaling_dic['id_col']
         y_cols = scaling_dic['y_cols']
@@ -235,12 +243,13 @@ class ProcessData:
         # to y_org, then select nonan to get unscaled_y_data
         #
         if len(onehot_cols) > 0:
-            for idn, jy, onehot in ((a,b,c) for a in ids_list for b in range(y_dim) 
-                    for c in onehot_cols):
+            for idn, jy, onehot in ((a,b,c) for a in ids_list for b in 
+                    range(y_dim) for c in onehot_cols):
                 idx0 = np.array(y_org[y_org[id_col[0]]==idn].index)[0]
                 idx1 = np.array(scaled_y_data[scaled_y_data[id_col[0]]==\
                         idn].index)[0]
-                if scaled_y_data.at[idx1,onehot] == 1:
+
+                if scaled_y_data.at[idx1,onehot] > 0.0:
                     if str(y_scaling) == 'minmax':
                         ymax = float(y_max.loc[y_max['onehot']==\
                             onehot][y_cols[jy]])
@@ -248,13 +257,14 @@ class ProcessData:
                             onehot][y_cols[jy]])
                         y_org.at[idx0,model_y_cols[jy]]=scaled_y_data.at[idx1,
                                 model_y_cols[jy]]*(ymax-ymin)+ymin
-                    elif str(y_scaling) == 'normal':
+                    elif str(y_scaling) == 'normalize':
                         ymean = float(y_mean.loc[y_max['onehot']==\
                             onehot][y_cols[jy]])
                         ystd = float(y_std.loc[y_min['onehot']==\
                             onehot][y_cols[jy]])
                         y_org.at[idx0,model_y_cols[jy]]=scaled_y_data.at[idx1,
                                 model_y_cols[jy]]*ystd +ymean
+
             unscaled_y_data = y_org.dropna(subset=model_y_cols)
 
             # Get RMSE of each prop
@@ -263,7 +273,8 @@ class ProcessData:
                 for y_col in y_cols:
                     this_rmse = np.sqrt(np.mean((np.array(sel_y_data[y_col])-\
                             np.array(sel_y_data['md_'+y_col]))**2))
-                print ("    >>>>", message, onehot, y_col, this_rmse)
+                    print ("      rmse",str(message).ljust(12),onehot,
+                            str(y_col).ljust(16),round(this_rmse,6))
 
         elif len(onehot_cols) == 0:
             for idn, jy in ((a,b) for a in ids_list for b in range(y_dim)):
@@ -274,13 +285,18 @@ class ProcessData:
                     delta_y=(y_max.at[0,y_cols[jy]]-y_min.at[0,y_cols[jy]])
                     y_org.at[idx0,model_y_cols[jy]] = scaled_y_data.at[idx1,
                             model_y_cols[jy]]*delta_y+y_min.at[0,y_cols[jy]]
-                elif str(y_scaling) == 'normal':
+                elif str(y_scaling) == 'normalize':
                     y_org.at[idx0,model_y_cols[jy]]=(scaled_y_data.at[idx1, 
                             model_y_cols[jy]]*y_std.at[0,y_cols[jy]])+\
                             y_mean.at[0,y_cols[jy]]
 
+            unscaled_y_data=y_org.dropna(subset=model_y_cols)
 
-            unscaled_y_data = y_org.dropna(subset=model_y_cols)
+            for y_col in y_cols:
+                this_rmse=np.sqrt(np.mean((np.array(unscaled_y_data[y_col])-\
+                        np.array(unscaled_y_data['md_'+y_col]))**2))
+                print ("       rmse",str(message).ljust(12),str(y_col).ljust(16),
+                        round(this_rmse,6))
 
         return unscaled_y_data
 

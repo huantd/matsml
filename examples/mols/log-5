@@ -1,0 +1,23 @@
+* 
+* 
+* MATSML, a machine learning toolkit for materials science
+* Huan Tran, huantd@gmail.com
+* 
+* 
+ 
+  A fully connected NeuralNet selected.
+  - Reading data ... 
+  - Data preprocessing ...
+    Scaling x: minmax
+    Scaling y: normal
+    cv,rmse_train,rmse_test,opt_rmse: 0 0.396829 0.428897 0.428897
+    cv,rmse_train,rmse_test,opt_rmse: 1 0.357081 0.396169 0.396169
+    cv,rmse_train,rmse_test,opt_rmse: 2 0.352550 0.406522 0.396169
+    cv,rmse_train,rmse_test,opt_rmse: 3 0.342622 0.377101 0.377101
+    cv,rmse_train,rmse_test,opt_rmse: 4 0.333793 0.404270 0.377101
+    Optimal ncv:  3 ; optimal NET saved.
+    >>>> training onehot-1 prop 36.912596144948374
+    >>>> training onehot-2 prop 0.06049847016021926
+    >>>> test onehot-1 prop 43.08892112083321
+    >>>> test onehot-2 prop 0.0740064146893575
+  - NN trained and predictions made
