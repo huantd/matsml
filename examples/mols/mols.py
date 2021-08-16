@@ -44,7 +44,7 @@ else:
     n_trains = 0.2
     sampling = 'random'
     x_scaling = 'minmax'
-    y_scaling = 'normalize' 
+    y_scaling = 'minmax' 
 
     data_params = {'data_file':data_file, 'id_col':id_col,'y_cols':y_cols, 
             'comment_cols':comment_cols,'y_scaling':y_scaling,
@@ -69,7 +69,8 @@ optimizer = 'nadam'              # options: "SGD","RMSprop","Adam","Adadelta",
 model_params = {'layers':layers,'activation_function':activ_funct,
         'epochs':epochs,'nfold_cv':nfold_cv,'optimizer':optimizer,
         'use_bias':use_bias,'file_model':file_model,'loss':loss,
-        'metric':metric,'batch_size':batch_size,'verbosity':verbosity}
+        'metric':metric,'batch_size':batch_size,'rmse_cv':True,
+        'verbosity':verbosity}
 
 # Compile a fully connected neural net based model
 model = FCNeuralNet(data_params=data_params,model_params=model_params)

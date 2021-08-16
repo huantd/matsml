@@ -62,6 +62,7 @@ class FCNeuralNet:
         self.loss = self.model_params['loss']
         self.verbosity = self.model_params['verbosity']
         self.batch_size = self.model_params['batch_size']
+        self.rmse_cv = self.model_params['rmse_cv']
 
         print (' ')
         print ('  A fully connected NeuralNet selected.')
@@ -117,6 +118,12 @@ class FCNeuralNet:
         x_train_fp=np.array(self.train_set[self.x_cols]).astype(np.float32)
         x_test_fp=np.array(self.test_set[self.x_cols]).astype(np.float32)
 
+        # A dictionary of scaling parameters
+        scaling_dic = {'id_col':self.id_col,'y_cols':self.y_cols,
+                'onehot_cols':self.onehot_cols,'y_org':self.y_org,
+                'y_scaling':self.y_scaling,'y_mean':self.y_mean,
+                'y_std':self.y_std,'y_min':self.y_min,'y_max':self.y_max}
+
         TEMPLATE = \
             "      cv,rmse_train,rmse_test,opt_rmse: {0:d} {1:.6f} {2:.6f} {3:.6f}"
 
@@ -146,9 +153,12 @@ class FCNeuralNet:
         kf_=KFold(n_splits=self.nfold_cv,shuffle=True)
         kf = kf_.split(self.train_set)
 
-        opt_rmse = 1.0E20
-        ncv = 0
-        ncv_opt = ncv
+        opt_rmse=1.0E20
+        ncv=0
+        ncv_opt=ncv
+        
+        #if self.rmse_cv:
+        #    rmse_cv=[]
 
         print ('  - Training model with cross validation')
         for train_cv,test_cv in kf:
@@ -166,6 +176,18 @@ class FCNeuralNet:
                     .reshape(len(train_cv)*self.y_dim)-y_cv_train_md)**2))
             rmse_cv_test=np.sqrt(np.mean((np.array(y_cv_test)\
                     .reshape(len(test_cv)*self.y_dim)-y_cv_test_md)**2))
+              
+            if self.rmse_cv:
+                y_cv_test_md = nn_model.predict(x_cv_test)
+                predicted_cv_test = pd.concat([self.train_set.iloc[test_cv]\
+                        [self.id_col+self.onehot_cols+self.y_cols]\
+                        .reset_index(),pd.DataFrame(y_cv_test_md,\
+                        columns=self.y_md_cols)],axis=1,ignore_index=True)
+                predicted_cv_test.columns = ['index']+self.id_col+\
+                        self.onehot_cols+self.y_cols+self.y_md_cols
+                unscaled_cv_test=ProcessData.unscale_y(predicted_cv_test,\
+                        scaling_dic,'cv_test')
+                #rmse_cv.append(rmse_cv_test)
 
             if rmse_cv_test < opt_rmse:
                 opt_rmse=rmse_cv_test
@@ -175,20 +197,17 @@ class FCNeuralNet:
             print (TEMPLATE.format(ncv,rmse_cv_train,rmse_cv_test,opt_rmse))
             ncv=ncv+1
 
+        #if self.rmse_cv:
+        #    print('    Cross-validation rmse: ',np.average(rmse_cv))
+
         print('    Optimal ncv: ',ncv_opt,"; optimal NET saved.")
         
         nn_model.load_weights(self.file_model)
 
-        # A dictionary of scaling parameters
-        scaling_dic = {'id_col':self.id_col,'y_cols':self.y_cols,
-                'onehot_cols':self.onehot_cols,'y_org':self.y_org,
-                'y_scaling':self.y_scaling,'y_mean':self.y_mean,
-                'y_std':self.y_std,'y_min':self.y_min,'y_max':self.y_max}
-
         # Make predictions on the training and test datasets
         y_train_md = nn_model.predict(x_train_fp)
         predicted_train_set = pd.concat([self.train_set[self.id_col+
-            self.onehot_cols],self.train_set[self.y_cols],
+            self.onehot_cols+self.y_cols],
             pd.DataFrame(y_train_md,columns=self.y_md_cols)],axis=1,
             ignore_index=True)
 
@@ -203,7 +222,7 @@ class FCNeuralNet:
         if self.n_tests > 0:
             y_test_md = nn_model.predict(x_test_fp)
             predicted_test_set = pd.concat([self.test_set[self.id_col+
-                self.onehot_cols],self.test_set[self.y_cols],
+                self.onehot_cols+self.y_cols],
                 pd.DataFrame(y_test_md,columns=self.y_md_cols)],axis=1,
                 ignore_index=True)
 

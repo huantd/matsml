@@ -105,6 +105,7 @@ class ProcessData:
         x_scaled_df=pd.DataFrame(x_scaled,columns=self.x_cols)
         x_scaled_df[self.id_col]=x[self.id_col]
         self.x_scaled=x_scaled_df
+        #print (x_scaled_df)
 
         # Work with y data
         y = self.y
@@ -165,6 +166,8 @@ class ProcessData:
                         y_scaled.at[i,y_cols[j]]=(y.at[i,y_cols[j]]-ymean)/ystd
                     elif str(self.y_scaling)=='minmax':
                         y_scaled.at[i,y_cols[j]]=(y.at[i,y_cols[j]]-ymin)/(ymax-ymin)
+                    elif str(self.y_scaling)=='none':
+                        y_scaled.at[i,y_cols[j]]=y.at[i,y_cols[j]]
 
             self.y_scaled = y_scaled
             
@@ -188,6 +191,8 @@ class ProcessData:
                     delta_y=(self.y_max.at[0,y_cols[j]]-self.y_min.at[0,y_cols[j]])
                     y_scaled.at[i,y_cols[j]]=(y.at[i,y_cols[j]]-\
                             self.y_min.at[0,y_cols[j]])/delta_y
+                elif str(self.y_scaling) == 'none':
+                    y_scaled.at[i,y_cols[j]]=y.at[i,y_cols[j]]
 
             self.y_scaled = y_scaled
         
@@ -264,6 +269,9 @@ class ProcessData:
                             onehot][y_cols[jy]])
                         y_org.at[idx0,model_y_cols[jy]]=scaled_y_data.at[idx1,
                                 model_y_cols[jy]]*ystd +ymean
+                    elif str(y_scaling) == 'none':
+                        y_org.at[idx0,model_y_cols[jy]]=scaled_y_data.at[idx1,
+                                model_y_cols[jy]]
 
             unscaled_y_data = y_org.dropna(subset=model_y_cols)
 
@@ -289,6 +297,9 @@ class ProcessData:
                     y_org.at[idx0,model_y_cols[jy]]=(scaled_y_data.at[idx1, 
                             model_y_cols[jy]]*y_std.at[0,y_cols[jy]])+\
                             y_mean.at[0,y_cols[jy]]
+                elif str(y_scaling) == 'none':
+                    y_org.at[idx0,model_y_cols[jy]]=scaled_y_data.at[idx1, 
+                            model_y_cols[jy]]
 
             unscaled_y_data=y_org.dropna(subset=model_y_cols)
 
