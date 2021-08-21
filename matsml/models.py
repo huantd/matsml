@@ -55,7 +55,7 @@ class FCNeuralNet:
         self.nfold_cv = self.model_params['nfold_cv']
         self.file_model = self.model_params['file_model']
         self.layers = self.model_params['layers']
-        self.activ_funct = self.model_params['activation_function']
+        self.activ_funct = self.model_params['activ_funct']
         self.epochs = self.model_params['epochs']
         self.optimizer = self.model_params['optimizer']
         self.use_bias = self.model_params['use_bias']
@@ -125,7 +125,7 @@ class FCNeuralNet:
                 'y_std':self.y_std,'y_min':self.y_min,'y_max':self.y_max}
 
         TEMPLATE = \
-            "      cv,rmse_train,rmse_test,opt_rmse: {0:d} {1:.6f} {2:.6f} {3:.6f}"
+            "    cv,rmse_train,rmse_test,rmse_opt: {0:d} {1:.6f} {2:.6f} {3:.6f}"
 
         print ('  - Building model: FCNeuralNet')
         nn_model = Sequential()
@@ -136,7 +136,7 @@ class FCNeuralNet:
         # Append hidden layers
         for layer in self.layers:
             nn_model.add(Dense(layer,kernel_initializer='normal', 
-                activation=self.activ_funct, use_bias=self.use_bias))
+                activation=self.activ_funct,use_bias=self.use_bias))
 
         # Output layer    
         nn_model.add(Dense(self.y_dim,kernel_initializer='normal',
@@ -157,13 +157,10 @@ class FCNeuralNet:
         ncv=0
         ncv_opt=ncv
         
-        #if self.rmse_cv:
-        #    rmse_cv=[]
-
         print ('  - Training model with cross validation')
         for train_cv,test_cv in kf:
 
-            x_cv_train, x_cv_test, y_cv_train, y_cv_test = \
+            x_cv_train, x_cv_test, y_cv_train, y_cv_test=\
                     self.get_cv_data(train_cv,test_cv)
 
             nn_model.fit(x_cv_train,y_cv_train,epochs=self.epochs,batch_size=\
@@ -177,18 +174,6 @@ class FCNeuralNet:
             rmse_cv_test=np.sqrt(np.mean((np.array(y_cv_test)\
                     .reshape(len(test_cv)*self.y_dim)-y_cv_test_md)**2))
               
-            if self.rmse_cv:
-                y_cv_test_md = nn_model.predict(x_cv_test)
-                predicted_cv_test = pd.concat([self.train_set.iloc[test_cv]\
-                        [self.id_col+self.onehot_cols+self.y_cols]\
-                        .reset_index(),pd.DataFrame(y_cv_test_md,\
-                        columns=self.y_md_cols)],axis=1,ignore_index=True)
-                predicted_cv_test.columns = ['index']+self.id_col+\
-                        self.onehot_cols+self.y_cols+self.y_md_cols
-                unscaled_cv_test=ProcessData.unscale_y(predicted_cv_test,\
-                        scaling_dic,'cv_test')
-                #rmse_cv.append(rmse_cv_test)
-
             if rmse_cv_test < opt_rmse:
                 opt_rmse=rmse_cv_test
                 nn_model.save_weights(self.file_model)
@@ -197,8 +182,17 @@ class FCNeuralNet:
             print (TEMPLATE.format(ncv,rmse_cv_train,rmse_cv_test,opt_rmse))
             ncv=ncv+1
 
-        #if self.rmse_cv:
-        #    print('    Cross-validation rmse: ',np.average(rmse_cv))
+            if self.rmse_cv:
+                y_cv_test_md=nn_model.predict(x_cv_test)
+                predicted_cv_test=pd.concat([self.train_set.iloc[test_cv]\
+                        [self.id_col+self.onehot_cols+self.y_cols]\
+                        .reset_index(),pd.DataFrame(y_cv_test_md,\
+                        columns=self.y_md_cols)],axis=1,ignore_index=True)
+                predicted_cv_test.columns=['index']+self.id_col+\
+                        self.onehot_cols+self.y_cols+self.y_md_cols
+                unscaled_cv_test=ProcessData.unscale_y(predicted_cv_test,\
+                        scaling_dic,'cv_test')
+
 
         print('    Optimal ncv: ',ncv_opt,"; optimal NET saved.")
         
