@@ -1,0 +1,2 @@
+X,train_err,train_unc,test_err,test_unc,train_r2_mean,train_r2_std,test_r2_mean,test_r2_std
+176,0.11709973628305828,0.0,0.1577912275339398,0.0,0.8291959613379689,0.0,-0.1644596563271689,0.0
