@@ -1,238 +1,341 @@
-# Copyright Huan Tran (huantd@gmail.com), 2021
-
+# By Huan Tran (huantd@gmail.com), 2021
+#
 import numpy as np
-from sklearn.decomposition import PCA
-from scipy.stats import binned_statistic_2d
-from sklearn import preprocessing
 import pandas as pd
+
+
 from matsml.data import ProcessData
+from matsml.io import AtomicStructure
+from matsml.io import goodbye,progress_bar
+import os,math,sys
 
 class Fingerprint:
+    """ Fingerprint: compute materials fingerprints from atomic structures
 
-    def __init__(self,input_data):
-        self.input_data = input_data
+    Parameters
+    ----------
+    data_params:     Dictionary, containing parameters needed, see manual
 
-
-def amotif_molec(struct_df, struct_format):
-    """
-    Functionality: 
-        Compute the fingerints based on the atomic motif
-    Input:     
-        struct_df: pandas dataframe, the structure to be fingeprinted
-    Returns:
-        message: string, summary of the fingerprinting
-        madfp_df: dataframe, madfp_df updated with the new fingerprint
     """
 
-    #fp_dim = int(fp_dimension)
+    def __init__(self,data_params):
+        self.data_params=data_params
+        self.fp_type=self.data_params['fp_type']
+        self.sum_list=self.data_params['sum_list']
+        self.data_loc=self.data_params['data_loc']
+        self.struct_format=self.data_params['struct_format']
+        self.n_atoms_max=self.data_params['n_atoms_max']
+        self.fp_file=self.data_params['fp_file']
+        self.fp_dim=self.data_params['fp_dim']
+        self.verbosity=self.data_params['verbosity']
 
-    #AtomSpecs = {'Specs': ['C','H','O'],'Znucl': [6,1,8], 'Eref':[-37.7760091174, -0.461816662560, -74.9573978895]}
-    #specs_df = pd.DataFrame(AtomSpecs, columns = ['Specs', 'Znucl', 'Eref'])
+        print ('  Atomic structure fingerprinting')
+        print ('    sum_list'.ljust(32),self.sum_list)
+        print ('    data_loc'.ljust(32),self.data_loc)
+        print ('    n_atoms_max'.ljust(32),self.n_atoms_max)
+        print ('    struct_format'.ljust(32),self.struct_format)
+        print ('    fp_type'.ljust(32),self.fp_type)
+        print ('    fp_dim'.ljust(32),self.fp_dim)
+        print ('    fp_file'.ljust(32),self.fp_file)
+        print ('    verbosity'.ljust(32),self.verbosity)
 
-    #print (struct_df)
-    #columns = ['id', 'target']
-    #for i in range(fp_dim):
-    #    columns.append('gfp_'+str(i).zfill(3))
+    def read_input(self):
+        """
+        Functionality
+            Read the input file
+        """
+        print ('  Read input')
+        self.structs=pd.read_csv(self.sum_list,delimiter=',')
+        print ('    num_structs'.ljust(32),len(self.structs))
 
-    afp = pd.DataFrame()
+    def gaussian(self,x,sigma,r):
+        return 1./(math.sqrt(sigma**math.pi))*np.exp(-sigma*np.power((x-r),2.))
 
-    atfp_list = []
-    for k, v in struct_df['file_name'].items():
-        print ('  processing file %s ' %v)
-        target = np.array(struct_df.loc[struct_df['file_name'] == str(v)]['prop']).astype(float)[0]
-        nat, nspecs, specs, xyz_df =  read_xyz(str(v))
-        message,atfp_list, afp_this = atfp(atfp_list, nat, nspecs, specs, xyz_df)
-        afp = pd.concat([afp,afp_this], axis=0, ignore_index=True)
-        afp.at[afp.shape[0]-1,'id'] = str(v)
-        prop = struct_df[struct_df['file_name'] == str(v)]['prop']
-        afp.at[afp.shape[0]-1,'target'] = float(prop)
-
-    afp = afp.fillna(0.0)
-
-    # Rearrange columns
-    first_cols = ['id', 'target']
-    last_cols = [col for col in afp.columns if col not in first_cols]
-    afp = afp[first_cols+last_cols]
-
-    return afp
-
-def gaussian_coulombmatrix_molec(struct_df, struct_format, fp_dimension):
-    """
-    Functionality: 
-        Compute the fingerints based in the moments of the atomic distance of the structures provided
-    Input:     
-        struct_df: pandas dataframe, the structure to be fingeprinted
-    Returns:
-        message: string, summary of the fingerprinting
-        madfp_df: dataframe, madfp_df updated with the new fingerprint
-    """
-
-    fp_dim = int(fp_dimension)
-
-    AtomSpecs = {'Specs': ['C','H','O'],'Znucl': [6,1,8], 'Eref':[-37.7760091174, -0.461816662560, -74.9573978895]}
-    specs_df = pd.DataFrame(AtomSpecs, columns = ['Specs', 'Znucl', 'Eref'])
-
-    columns = ['id', 'target']
-    for i in range(fp_dim):
-        columns.append('gfp_'+str(i).zfill(3))
-    gfp = pd.DataFrame(columns = columns)
-
-    xmin = 0
-    xmax = 78
-    #print ('>>', xmin, xmax)
-    ri = np.linspace(xmin, xmax, fp_dim)
-    sigma = 1.5*(xmax-xmin)/fp_dim
-    #print ('>>', ri, sigma)
-
-    for k, v in struct_df['file_name'].items():
-        print ('  processing file %s ' %v)
-        target = np.array(struct_df.loc[struct_df['file_name'] == str(v)]['prop']).astype(float)[0]
-        nat, nspecs, specs, xyz_df =  read_xyz(str(v))
-        cm = np.zeros((nat, nat))
+    def get_fingerprint(self):
+        """
+        Functionality: 
+            Compute materials fingerprints
+        """
         
-        for iat in range(nat-1):
-            xcart = xyz_df.iloc[iat][['x', 'y', 'z']]
-            xi = np.array(xcart).astype(float)
-            spi = np.array(xyz_df.iloc[iat][['species']]).astype(str)[0]
-            zi = np.array(specs_df.loc[specs_df['Specs'] == str(spi)]['Znucl']).astype(float)[0]
-            eref = np.array(specs_df.loc[specs_df['Specs'] == str(spi)]['Eref']).astype(float)[0]
-            #target = target - eref
-            for jat in range(iat, nat, 1):
-                spj = np.array(xyz_df.iloc[jat][['species']]).astype(str)[0]
-                zj = np.array(specs_df.loc[specs_df['Specs'] == str(spj)]['Znucl']).astype(float)[0]
-                xcart = xyz_df.iloc[jat][['x', 'y', 'z']]
-                xj = np.array(xcart).astype(float)
-                dist = np.linalg.norm(xi-xj)
-                if iat == jat:
-                    cm[iat][jat] = 0.5 * zi ** 2.4  # Diagonal term described by Potential energy of isolated atom
-                else:
-                    cm[iat][jat] = zi * zj / dist   # Pair-wise repulsion
+        if self.fp_type=='pcm_molecs_matsml':
+            fp=self.get_pcm()
+        elif self.fp_type=='pcm_molecs':
+            fp=self.get_pcm_dsc()
+        elif self.fp_type=='pesm_crystals':
+            fp=self.get_pesm_dsc()
 
-        #eigenvals, eigenvecs = LA.eig(cm)
-        cm_flatten = cm.flatten()
-        #xmin = min(xmin,np.amin(cm_flatten))
-        #xmax = max(xmax,np.amax(cm_flatten))
-        #print ('>>', np.amin(cm_flatten), np.amax(cm_flatten))
-        #print (cm_flatten)
+        fp.to_csv(self.fp_file,index=False)
+        print ('  Done fingerprinting, results saved in %s'%(self.fp_file))
 
-        #gcm = [str(v), str(target/nat*27.211)]
-        gcm = [str(v), str(target)]
+    def get_pcm(self):
+        """
+        Functionality: 
+            Compute the projected coulomb matrix of molecules
 
-        for i in range(fp_dim):
-            gcm_el = sum(gaussian(cm_flatten[j], sigma, ri[i]) for j in range(len(cm_flatten)))
-            gcm.append(gcm_el)
-        gfp = gfp.append(pd.DataFrame(np.array(gcm).reshape((1, fp_dim+2)), columns = columns))
+        Note: this method is much faster than "get_pcm_dsc", which uses dscribe
+              for creating CM and ASE to import structure. 
 
-    return gfp
+        """
+        
+        self.read_input()
+        ats=AtomicStructure()
+        fp_dim=self.fp_dim
+        struct_df=self.structs
 
-def read_xyz(filename):
-    """
-    Functionality: 
-        Read the xyz file and return all the information obtained
-    Input:     
-        filename: string, name of the file to be read
-    Returns:
-        nat:      integer, number of atoms
-        nspecs:   integer, number of species
-        specs:    list of species
-        xyz_df:   dataframe, species and xyz coords
-    """
-    import pandas as pd
+        AtomSpecs={'specs':['C','H','O','F','N','S','Cl'],
+            'znucl':[6,1,8,9,7,16,17]}
+        specs_df=pd.DataFrame(AtomSpecs,columns=['specs','znucl'])
+        
+        columns=['id','target']+['pcm_'+str(i).zfill(4) for i in range(fp_dim)]
+        pcm=pd.DataFrame(columns=columns)
 
-    xyz = open(str(filename),"r+")  
-    Lines = xyz.readlines()
-    nlines = len(Lines)
-    nat = int(Lines[0].strip('\n').strip('\t').strip(' '))
-    columns = ['species', 'x', 'y', 'z']
-    xyz_df = pd.DataFrame(columns = columns)
-    specs = []
-    nspecs = 0
-    for i in range(2, nat+2, 1):
-        spec = Lines[i].split()[0]
-        if (not any (sp == spec for sp in specs)):
-            specs.append(spec)
-            nspecs += 1
-        x = Lines[i].split()[1]
-        y = Lines[i].split()[2]
-        z = Lines[i].split()[3]
-        xyz_df.loc[len(xyz_df)] = [spec, x, y, z]
+        print ('  Computing Coulomb matrix')
 
-    return nat, nspecs, specs, xyz_df
+        cm_all=[]
+        for k, v in struct_df['file_name'].items():
+            sys.stdout.write('\r')
+            if self.verbosity==1:
+                print ('    processing file %s ' %v)
+            elif self.verbosity==0:
+                progress_bar(k,len(struct_df),'update')
 
-def gaussian(x, sigma, r):
-    return 1./(math.sqrt(sigma**math.pi))*np.exp(-sigma*np.power((x - r), 2.))
+            nat,nspecs,specs,xyz_df=ats.read_xyz(os.path.join(self.data_loc,
+                str(v)))
 
-def atfp(atfp_list, nat, nspecs, specs, xyz_df):
-    """
-    Functionality:
-        Compute the atomic fingerint the obtained polymer POSCAR
-    Input:
-        str_poscar: vasp poscar, the structure to be fingeprinted
-        atfp_df: dataframe, emty pd dataframe with columns obtained from the initial data (fingerprint)
-    Returns:
-        message: string, summary of the fingerprinting
-        atfp_df: dataframe, atfp_df updated with the new fingerprint
-    """
+            cm=np.zeros((nat,nat))
+            
+            for iat in range(nat-1):
+                xcart=xyz_df.iloc[iat][['x','y','z']]
+                xi=np.array(xcart).astype(float)
+                spi=np.array(xyz_df.iloc[iat][['specs']]).astype(str)[0]
+                zi=np.array(specs_df.loc[specs_df['specs']==str(spi)]\
+                    ['znucl']).astype(float)[0]
+                for jat in range(iat,nat,1):
+                    spj=np.array(xyz_df.iloc[jat][['specs']]).astype(str)[0]
+                    zj=np.array(specs_df.loc[specs_df['specs']==str(spj)]\
+                        ['znucl']).astype(float)[0]
+                    xcart=xyz_df.iloc[jat][['x','y','z']]
+                    xj=np.array(xcart).astype(float)
+                    if iat==jat:
+                        cm[iat][jat]=0.5*zi**2.4
+                    else:
+                        cm[iat][jat]=zi*zj/np.linalg.norm(xi-xj)
+        
+            cm_all.append(cm.flatten().astype(list))
 
-    #print ('          - fingerprinting ... ', end='')
-    bond_def = pd.read_csv('bonds.csv')
-    #atfp_list = list(atfp_df.columns)
+        if self.verbosity==0:
+            sys.stdout.write('\n')
 
-    species = list(xyz_df['species'])
+        # Projected Coulomb matrix
+        print ('  Projecting Coulomb matrix to create fingerprints')
+        xmin=min([min(r) for r in cm_all])
+        xmax=min([max(r) for r in cm_all])
+        ri=np.linspace(xmin,xmax,fp_dim)
+        sigma=1.5*(xmax-xmin)/fp_dim
 
-    coord_num = [] # list of coordination number of all the atoms
-    neighbors = [] # neightbor list, nat rows for nat atoms, in each row all the neighbors are listed
+        for k, v in struct_df['file_name'].items():
+            sys.stdout.write('\r')
+            idx=np.array(struct_df.loc[struct_df['file_name']==str(v)].\
+                index)[0]
 
-    # get the neighbor list and coordination numbers
-    for iat in range(nat):
-        cn = 0     # coordination number of a specific atom
-        nb_loc = []
-        for jat in range(nat):
-            if iat != jat:
-                #d = str_current.get_distance(iat,jat)
-                xyz_iat = np.array([float(xyz_df.at[iat,'x']), float(xyz_df.at[iat,'y']), float(xyz_df.at[iat,'z'])])
-                xyz_jat = np.array([float(xyz_df.at[jat,'x']), float(xyz_df.at[jat,'y']), float(xyz_df.at[jat,'z'])])
-                d = np.linalg.norm(xyz_iat-xyz_jat)
-                selected_row = bond_def.loc[ ((bond_def['end1'] == str(species[iat])) & (bond_def['end2'] == str(species[jat]))) |
-                        ((bond_def['end1'] == str(species[jat])) & (bond_def['end2'] == str(species[iat])))]
-                if selected_row.shape[0] > 0 :
-                    if (d >= float(selected_row['lmin'])) and (d <= float(selected_row['lmax'])) :
-                        cn = cn + 1
-                        nb_loc.append(jat)
-        # Update neighbor list and coordination numbers
-        coord_num.append(cn)
-        neighbors.append(nb_loc)
+            if self.verbosity==1:
+                print ('    processing entries %s of the CM' %v)
+            elif self.verbosity==0:
+                progress_bar(k,len(struct_df),'update')
 
-    # atfp_df.loc[len(atfp_df)] = 0
-    atfp_df = pd.DataFrame(0, index=range(1), columns=atfp_list) 
+            target=np.array(struct_df.loc[struct_df['file_name']==\
+                str(v)]['target']).astype(float)[0]
 
-    # look at the neighbor list and compute fingerprint
-    message = 'Good: all fingerprints found'
-    for iat in range(nat):
-        iatn = str(species[iat]) + str(coord_num[iat])
-        nb_loc = neighbors[iat]
-        for i in range(len(nb_loc)):
-            for j in range(len(nb_loc)):
-                if i != j:
-                    nb1n = str(species[nb_loc[i]]) + str(coord_num[nb_loc[i]])
-                    nb2n = str(species[nb_loc[j]]) + str(coord_num[nb_loc[j]])
-                    triple1 = nb1n + iatn + nb2n
-                    triple2 = nb2n + iatn + nb1n
+            cm_flatten=cm_all[idx]
+            gcm=[str(v),str(target)]
+        
+            for i in range(fp_dim):
+                gcm_el=sum(self.gaussian(cm_flatten[j],sigma,ri[i]) for j in\
+                    range(len(cm_flatten)))
+                gcm.append(gcm_el)
 
-                    #print (atfp_list, triple1, triple2)
+            pcm=pcm.append(pd.DataFrame(np.array(gcm).reshape((1,fp_dim+2)),
+                columns=columns))
 
-                    if (any (fp == triple1 for fp in atfp_list)):
-                        ind = atfp_list.index(triple1)
-                        atfp_df[triple1] = atfp_df.at[0, triple1] + 0.5/nat
-                    elif (any (fp == triple2 for fp in atfp_list)):
-                        ind = atfp_list.index(triple2)
-                        atfp_df[atfp_list[ind]] = atfp_df[atfp_list[ind]] + (0.5/nat)
-                    elif (not any (fp == triple1 for fp in atfp_list)) and (not any (fp == triple2 for fp in atfp_list)) :
-                        ind = len(atfp_list)
-                        atfp_list.append(triple1)
-                        atfp_df.at[0,atfp_list[ind]] = 0.0
-                        atfp_df.at[0,atfp_list[ind]] = atfp_df.at[0,atfp_list[ind]] + (0.5/nat)
+        if self.verbosity==0:
+            sys.stdout.write('\n')
 
-    #print (atfp_df)
-    return message, atfp_list, atfp_df
+        # Remove constant columns
+        pcm=pcm.loc[:,(pcm!=pcm.iloc[0]).any()]
+
+        return pcm
+        
+
+    def get_pesm_dsc(self):
+        from dscribe.descriptors import EwaldSumMatrix
+        from ase import io
+
+        """
+        Functionality: 
+            Compute the projected Ewald sum matrix of crystals using DScribe
+
+        Note:
+            Original reference
+                F. Faber, A. Lindmaa, O. Anatole von Lilienfeld, & R. Armiento, 
+                    "Crystal structure representations for machine learning 
+                    models of formation energies", Int. J. Quantum Chem. 115, 
+                    1094–1101 (2015).
+            Implementation
+                L. Himanen, M.O.J. Jäger, E. V.Morooka, F. F. Canova, Y. S.
+                    Ranawat, D. Z. Gao, P. Rinke, and A. S.Foste, "DScribe: 
+                    Library of descriptors for machine learning in materials 
+                    science, Comput. Phys. Commun. 247, 106949 (2020)
+                https://singroup.github.io/dscribe/latest/
+
+        """
+        
+        self.read_input()
+        fp_dim=self.fp_dim
+        struct_df=self.structs
+        n_atoms_max=self.n_atoms_max
+
+        # Ewald summation parameters
+        rcut=4
+        gcut=4
+
+        columns=['id','target']+['pesm_'+str(i).zfill(4) for i in range(fp_dim)]
+        pesm=pd.DataFrame(columns=columns)
+
+        print ('  Computing Ewald sum Matrix')
+        esm_all=[]
+
+        # Ewald sum matrix with DScribe
+        for k, v in struct_df['file_name'].items():
+            sys.stdout.write('\r')
+            if self.verbosity==1:
+                print ('    processing file %s ' %v)
+            elif self.verbosity==0:
+                progress_bar(k,len(struct_df),'update')
+
+            crystal=io.read(os.path.join(self.data_loc,str(v)))
+            esm=EwaldSumMatrix(n_atoms_max=n_atoms_max,permutation="none",
+                flatten=True)
+            esm_this=esm.create(crystal,rcut=rcut,gcut=gcut)
+            esm_all.append(esm_this)
+
+        if self.verbosity==0:
+            sys.stdout.write('\n')
+
+        # Projected Ewald sum matrix 
+        print ('  Projecting Ewald sum matrix to create fingerprints')
+        xmin=min([min(r) for r in esm_all])
+        xmax=min([max(r) for r in esm_all])
+        ri=np.linspace(xmin,xmax,fp_dim)
+        sigma=1.75*(xmax-xmin)/fp_dim
+
+        for k, v in struct_df['file_name'].items():
+            sys.stdout.write('\r')
+            # Dont want to use k as index here
+            idx=np.array(struct_df.loc[struct_df['file_name']==str(v)].\
+                index)[0]
+
+            if self.verbosity==1:
+                print ('    processing entry %s of the Ewald sum matrix' %v)
+            elif self.verbosity==0:
+                progress_bar(k,len(struct_df),'update')
+
+            target=np.array(struct_df.loc[struct_df['file_name']==\
+                str(v)]['target']).astype(float)[0]
+
+            ems_crystal=esm_all[k]
+
+            gcm=[str(v),str(target)]
+            for i in range(fp_dim):
+                gcm_el=sum(self.gaussian(ems_crystal[j],sigma,ri[i]) for j in\
+                    range(len(ems_crystal)))
+                gcm.append(gcm_el)
+
+            pesm=pesm.append(pd.DataFrame(np.array(gcm).reshape((1,fp_dim+2)),
+                columns=columns))
+
+        if self.verbosity==0:
+            sys.stdout.write('\n')
+
+        # Remove constant columns
+        pesm=pesm.loc[:,(pesm!=pesm.iloc[0]).any()]
+
+        return pesm
+        
+
+    def get_pcm_dsc(self):
+        from dscribe.descriptors import CoulombMatrix
+        from ase import io
+        """
+        Functionality: 
+            Compute the projected coulomb matrix of molecules using DScribe
+
+        """
+        
+        self.read_input()
+        fp_dim=self.fp_dim
+        struct_df=self.structs
+        n_atoms_max=self.n_atoms_max
+        
+        columns=['id','target']+['pcm_'+str(i).zfill(4) for i in range(fp_dim)]
+        pcm=pd.DataFrame(columns=columns)
+
+        print ('  Computing Coulomb matrix')
+        cm_all=[]
+
+        for k, v in struct_df['file_name'].items():
+            sys.stdout.write('\r')
+            if self.verbosity==1:
+                print ('    processing file %s ' %v)
+            elif self.verbosity==0:
+                progress_bar(k,len(struct_df),'update')
+
+            # CoulombMatrix with DScribe 
+            cm=CoulombMatrix(n_atoms_max=n_atoms_max)
+            molec=io.read(os.path.join(self.data_loc,str(v)))
+            cm_molec=cm.create(molec)
+            cm_all.append(cm_molec.flatten().astype(list))
+
+        if self.verbosity==0:
+            sys.stdout.write('\n')
+
+        # Projected Coulomb matrix 
+        print ('  Projecting Coulomb matrix to create fingerprints')
+        xmin=min([min(r) for r in cm_all])
+        xmax=min([max(r) for r in cm_all])
+        ri=np.linspace(xmin,xmax,fp_dim)
+        sigma=1.5*(xmax-xmin)/fp_dim
+
+        for k, v in struct_df['file_name'].items():
+            sys.stdout.write('\r')
+            if self.verbosity==1:
+                print ('    processing entries %s of the CM' %v)
+            elif self.verbosity==0:
+                progress_bar(k,len(struct_df),'update')
+
+            idx=np.array(struct_df.loc[struct_df['file_name']==str(v)].\
+                index)[0]
+
+            target=np.array(struct_df.loc[struct_df['file_name']==\
+                str(v)]['target']).astype(float)[0]
+
+            cm_molec=cm_all[k]
+
+            gcm=[str(v),str(target)]
+        
+            for i in range(fp_dim):
+                gcm_el=sum(self.gaussian(cm_molec[j],sigma,ri[i]) for j in\
+                    range(len(cm_molec)))
+                gcm.append(gcm_el)
+
+            pcm=pcm.append(pd.DataFrame(np.array(gcm).reshape((1,fp_dim+2)),
+                columns=columns))
+
+        if self.verbosity==0:
+            sys.stdout.write('\n')
+
+        # Remove constant columns
+        pcm=pcm.loc[:,(pcm!=pcm.iloc[0]).any()]
+
+        return pcm
+        
 

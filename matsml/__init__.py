@@ -1,4 +1,2 @@
-print ('  ')
-print ('  MATSML, a machine-learning toolkit for materials science')
-print ('  Huan Tran, huantd@gmail.com')
-print ('  ----')
+print ('  matsML, version 1.0')
+print ('  *****')
