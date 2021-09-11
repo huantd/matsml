@@ -19,53 +19,74 @@ class Fingerprint:
     """
 
     def __init__(self,data_params):
+
+        # Threadhold of fingerprint components
+        self.thld=1E-8
+
         self.data_params=data_params
         self.fp_type=self.data_params['fp_type']
-        self.sum_list=self.data_params['sum_list']
+        self.summary=self.data_params['summary']
         self.data_loc=self.data_params['data_loc']
-        self.struct_format=self.data_params['struct_format']
         self.n_atoms_max=self.data_params['n_atoms_max']
+        self.species=self.data_params['species']
         self.fp_file=self.data_params['fp_file']
         self.fp_dim=self.data_params['fp_dim']
         self.verbosity=self.data_params['verbosity']
 
         print ('  Atomic structure fingerprinting')
-        print ('    sum_list'.ljust(32),self.sum_list)
+        print ('    summary'.ljust(32),self.summary)
         print ('    data_loc'.ljust(32),self.data_loc)
-        print ('    n_atoms_max'.ljust(32),self.n_atoms_max)
-        print ('    struct_format'.ljust(32),self.struct_format)
+        print ('    species'.ljust(32),self.species)
         print ('    fp_type'.ljust(32),self.fp_type)
-        print ('    fp_dim'.ljust(32),self.fp_dim)
         print ('    fp_file'.ljust(32),self.fp_file)
+        print ('    fp_dim'.ljust(32),self.fp_dim)
+        print ('    n_atoms_max'.ljust(32),self.n_atoms_max)
         print ('    verbosity'.ljust(32),self.verbosity)
+
 
     def read_input(self):
         """
-        Functionality
-            Read the input file
+        Functionality: 
+            read the input file
+
         """
+
         print ('  Read input')
-        self.structs=pd.read_csv(self.sum_list,delimiter=',')
+        self.structs=pd.read_csv(self.summary,delimiter=',')
         print ('    num_structs'.ljust(32),len(self.structs))
 
+
     def gaussian(self,x,sigma,r):
+        """ 
+        Functionality: 
+            return Gaussian function 
+
+        """
+
         return 1./(math.sqrt(sigma**math.pi))*np.exp(-sigma*np.power((x-r),2.))
+
 
     def get_fingerprint(self):
         """
         Functionality: 
-            Compute materials fingerprints
+            Wrapper, compute materials fingerprints
+
         """
         
         if self.fp_type=='pcm_molecs_matsml':
             fp=self.get_pcm()
         elif self.fp_type=='pcm_molecs':
             fp=self.get_pcm_dsc()
+        elif self.fp_type=='soap_molecs':
+            fp=self.get_soap_dsc()
+        elif self.fp_type=='soap_crystals':
+            fp=self.get_soap_dsc()
         elif self.fp_type=='pesm_crystals':
             fp=self.get_pesm_dsc()
 
         fp.to_csv(self.fp_file,index=False)
         print ('  Done fingerprinting, results saved in %s'%(self.fp_file))
+
 
     def get_pcm(self):
         """
@@ -152,6 +173,8 @@ class Fingerprint:
             for i in range(fp_dim):
                 gcm_el=sum(self.gaussian(cm_flatten[j],sigma,ri[i]) for j in\
                     range(len(cm_flatten)))
+                if np.absolute(gcm_el)<self.thld:
+                    gcm_el=0.0
                 gcm.append(gcm_el)
 
             pcm=pcm.append(pd.DataFrame(np.array(gcm).reshape((1,fp_dim+2)),
@@ -213,6 +236,7 @@ class Fingerprint:
                 progress_bar(k,len(struct_df),'update')
 
             crystal=io.read(os.path.join(self.data_loc,str(v)))
+
             esm=EwaldSumMatrix(n_atoms_max=n_atoms_max,permutation="none",
                 flatten=True)
             esm_this=esm.create(crystal,rcut=rcut,gcut=gcut)
@@ -248,6 +272,8 @@ class Fingerprint:
             for i in range(fp_dim):
                 gcm_el=sum(self.gaussian(ems_crystal[j],sigma,ri[i]) for j in\
                     range(len(ems_crystal)))
+                if np.absolute(gcm_el)<self.thld:
+                    gcm_el=0.0
                 gcm.append(gcm_el)
 
             pesm=pesm.append(pd.DataFrame(np.array(gcm).reshape((1,fp_dim+2)),
@@ -325,6 +351,8 @@ class Fingerprint:
             for i in range(fp_dim):
                 gcm_el=sum(self.gaussian(cm_molec[j],sigma,ri[i]) for j in\
                     range(len(cm_molec)))
+                if np.absolute(gcm_el)<self.thld:
+                    gcm_el=0.0
                 gcm.append(gcm_el)
 
             pcm=pcm.append(pd.DataFrame(np.array(gcm).reshape((1,fp_dim+2)),
@@ -338,4 +366,60 @@ class Fingerprint:
 
         return pcm
         
+
+    def get_soap_dsc(self):
+        from dscribe.descriptors import SOAP
+        from ase import io
+        """
+        Functionality: 
+            Compute the projected coulomb matrix of molecules using DScribe
+
+        """
+        
+        self.read_input()
+        struct_df=self.structs
+        species=self.species
+
+        rcut=8.0
+        nmax=5
+        lmax=4
+
+        periodic=True if self.fp_type=='soap_crystals' else False
+
+        average_soap=SOAP(species=species,rcut=rcut,nmax=nmax,lmax=lmax,
+            periodic=periodic,average="inner",sparse=False)
+
+        fp_dim=average_soap.get_number_of_features()
+        columns=['id','target']+['soap_'+str(i).zfill(4) for i in range(fp_dim)]
+        soap=pd.DataFrame(columns=columns)
+
+        print ('  Computing SOAP fingerprint')
+
+        for k, v in struct_df['file_name'].items():
+            sys.stdout.write('\r')
+            if self.verbosity==1:
+                print ('    processing file %s ' %v)
+            elif self.verbosity==0:
+                progress_bar(k,len(struct_df),'update')
+
+            idx=np.array(struct_df.loc[struct_df['file_name']==str(v)].\
+                index)[0]
+
+            target=np.array(struct_df.loc[struct_df['file_name']==\
+                str(v)]['target']).astype(float)[0]
+
+            # SOAP with DScribe 
+            molec=io.read(os.path.join(self.data_loc,str(v)))
+            this_soap=[str(v),str(target)]+list(average_soap.create(molec))
+
+            soap=soap.append(pd.DataFrame(np.array(this_soap).reshape((1,fp_dim+2)),
+                columns=columns))
+
+        if self.verbosity==0:
+            sys.stdout.write('\n')
+
+        # Remove constant columns
+        soap=soap.loc[:,(soap!=soap.iloc[0]).any()]
+
+        return soap
 

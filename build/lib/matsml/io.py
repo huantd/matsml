@@ -10,7 +10,9 @@ def goodbye():
     print ('  *****')
     print ('  matsML job completed')
 
+
 class AtomicStructure:
+    """ Atomic structure related I/O. More to come. """
     def __init__(self):
         self.status='Init'
 
@@ -46,20 +48,29 @@ class AtomicStructure:
         
         return nat,nspecs,specs,xyz_df
 
+
 def progress_bar(i_loop,loop_length,action):
-    """ Progress bar """
+    """ Progress bar for some slow works """
+
     import sys
 
     toolbar_width=50
     toolbar_step=loop_length/toolbar_width
     if action=='update':
-        sys.stdout.write("    [%-50s] %d%%"%('='*int(i_loop/toolbar_step),
-            int(100/toolbar_width*i_loop/toolbar_step+1)))
+        sys.stdout.write("    [%-50s] %d%%"%('='*min(int(i_loop/toolbar_step)+\
+            1,100),int(100/toolbar_width*i_loop/toolbar_step+1)))
         sys.stdout.flush()
     elif action=='finish':
         sys.stdout.write('\n')
 
-def plot_results():
+
+def plot_det_preds(y_cols,y_md_cols,pdf_output):
+    """ 
+    Plot results of the models trained and saved in training.csv and 
+        test.csv.
+
+    """
+
     import matplotlib.pyplot as plt
     import numpy as np
     from sklearn.metrics import r2_score
@@ -70,25 +81,107 @@ def plot_results():
     train_df=pd.read_csv('training.csv')
     n_trains=len(train_df)
     n_tests=len(test_df)
-    plt.figure(figsize=(6, 6))
-    plt.rc('xtick', labelsize=13)
-    plt.rc('ytick', labelsize=13)
 
-    #plt.xlim([-120,0])
-    #plt.xlim([-120,0])
+    for y_col,y_md_col in zip(y_cols,y_md_cols):
+        plt.figure(figsize=(6,6))
+        
+        plt.rc('xtick', labelsize=11)
+        plt.rc('ytick', labelsize=11)
 
-    rmse_train=np.sqrt(np.mean((train_df['target']-train_df['md_target'])**2))
-    r2_train=r2_score(train_df['target'],train_df['md_target'])
-    rmse_test=np.sqrt(np.mean((test_df['target']-test_df['md_target'])**2))
-    r2_test=r2_score(test_df['target'],test_df['md_target'])
-    plt.text(-110,-35,'n_trains: %s points\nn_tests: %s points\ntraining rmse: %.3f (eV)\ntest rmse: %.3f (eV)\ntraining r2: %.3f (eV)\ntest r2: %.3f (eV)'
-        %(n_trains,n_tests,rmse_train,rmse_test,r2_train,r2_test),size=11)
+        lmin=min(test_df[y_col].min(),train_df[y_col].min(),
+            test_df[y_md_col].min(),train_df[y_md_col].min())
+        lmax=max(test_df[y_col].max(),train_df[y_col].max(),
+            test_df[y_md_col].max(),train_df[y_md_col].max())
+        plt.xlim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
+        plt.ylim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
 
-    plt.tick_params(axis='x',which='both',bottom=True,top=False,labelbottom=True)
-    plt.tick_params(axis='y',which='both',direction='in')
-    plt.ylabel("Predicted value", size=14)
-    plt.xlabel("Reference value", size = 14)
-    plt.scatter(train_df['target'],train_df['md_target'],color='tab:red',alpha = 0.5,label='training set')
-    plt.scatter(test_df['target'],test_df['md_target'],color='tab:blue',alpha = 0.5,label='testset')
-    plt.legend(loc="lower right", fontsize = 13)
-    plt.show()
+
+        rmse_train=np.sqrt(np.mean((train_df[y_col]-train_df[y_md_col])**2))
+        r2_train=r2_score(train_df[y_col],train_df[y_md_col])
+        rmse_test=np.sqrt(np.mean((test_df[y_col]-test_df[y_md_col])**2))
+        r2_test=r2_score(test_df[y_col],test_df[y_md_col])
+        
+        plt.tick_params(axis='x',which='both',bottom=True,top=False,
+            labelbottom=True)
+        plt.tick_params(axis='y',which='both',direction='in')
+        plt.ylabel("Predicted value", size=12)
+        plt.xlabel("Reference value", size=12)
+        plt.scatter(train_df[y_col],train_df[y_md_col],color='tab:red',
+            marker='s',alpha=0.95,
+            label=r'training, (rmse & $R^2$) = (%.3f & %.3f)'\
+            %(rmse_train,r2_train))
+        plt.scatter(test_df[y_col],test_df[y_md_col],color='tab:blue',
+            marker='o',alpha=0.6,
+            label=r'test, (rmse & $R^2$) = (%.3f & %.3f)'\
+            %(rmse_test,r2_test))
+        plt.legend(loc="lower right",fontsize = 11)
+        if pdf_output:
+            plt.savefig('model_'+str(y_col)+'.pdf')
+            print ('    model_'+str(y_col)+'.pdf saved')
+        else:
+            print ('    showing '+str(y_col))
+            plt.show()
+        plt.close()
+
+
+def plot_prob_preds(y_cols,y_md_cols,yerr_md_cols,pdf_output):
+    """ 
+    Plot results of the models trained and saved in training.csv and 
+        test.csv.
+
+    """
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from sklearn.metrics import r2_score
+
+    print ('')
+    print ('  Plot results in "training.csv" & "test.csv"')
+    test_df=pd.read_csv('test.csv')
+    train_df=pd.read_csv('training.csv')
+
+    print (train_df)
+
+    n_trains=len(train_df)
+    n_tests=len(test_df)
+
+    for y_col,y_md_col,yerr_md_col in zip(y_cols,y_md_cols,yerr_md_cols):
+        plt.figure(figsize=(6,6))
+        
+        plt.rc('xtick', labelsize=11)
+        plt.rc('ytick', labelsize=11)
+
+        lmin=min(test_df[y_col].min(),train_df[y_col].min(),
+            test_df[y_md_col].min(),train_df[y_md_col].min())
+        lmax=max(test_df[y_col].max(),train_df[y_col].max(),
+            test_df[y_md_col].max(),train_df[y_md_col].max())
+        plt.xlim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
+        plt.ylim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
+
+
+        rmse_train=np.sqrt(np.mean((train_df[y_col]-train_df[y_md_col])**2))
+        r2_train=r2_score(train_df[y_col],train_df[y_md_col])
+        rmse_test=np.sqrt(np.mean((test_df[y_col]-test_df[y_md_col])**2))
+        r2_test=r2_score(test_df[y_col],test_df[y_md_col])
+        
+        plt.tick_params(axis='x',which='both',bottom=True,top=False,
+            labelbottom=True)
+        plt.tick_params(axis='y',which='both',direction='in')
+        plt.ylabel("Predicted value", size=12)
+        plt.xlabel("Reference value", size=12)
+        plt.errorbar(train_df[y_col],train_df[y_md_col],yerr=\
+            train_df[yerr_md_col],color='tab:red',fmt='s',alpha=0.95,
+            label=r'training, (rmse & $R^2$) = (%.3f & %.3f)'\
+            %(rmse_train,r2_train))
+        plt.errorbar(test_df[y_col],test_df[y_md_col],yerr=\
+            test_df[yerr_md_col],color='tab:blue',fmt='o',alpha=0.6,
+            label=r'test, (rmse & $R^2$) = (%.3f & %.3f)'\
+            %(rmse_test,r2_test))
+        plt.legend(loc="lower right",fontsize = 11)
+        if pdf_output:
+            plt.savefig('model_'+str(y_col)+'.pdf')
+            print ('    model_'+str(y_col)+'.pdf saved')
+        else:
+            print ('    showing '+str(y_col))
+            plt.show()
+        plt.close()
