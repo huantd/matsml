@@ -440,30 +440,6 @@ class PrFCNN:
             print ('  Predictions made & saved in "training.csv"')
 
 
-    def predict(self,predict_params):
-        """ Load the FCNN that was trained and saved, and use it to make 
-            predictions
-
-        """
-        import joblib
-
-        self.load_data()
-        nn_model=self.build_model()
-        nn_model.load_weights(self.model_file)
-
-        data_fp=pd.read_csv(predict_params['data_file'],delimiter=',',header=0,
-            low_memory=False)
-
-        x_cols=[col for col in list(data_fp.columns) if col not in
-            (predict_params['y_cols']+predict_params['id_col']+\
-            predict_params['comment_cols'])]
-
-        xscaler=joblib.load('xscaler.pkl') 
-        x=xscaler.transform(data_fp[x_cols])
-        y=nn_model.predict(x)
-
-        print (y)
-
     def plot(self,pdf_output):
         """ 
         Plot the train and test predictions
