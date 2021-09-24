@@ -1,5 +1,8 @@
-"""
-This module contains data related functionalities of matsML. More to come.
+""" Huan Tran (huantd@gmail.com)
+
+    Data module: data related functionalities (pre/postprocessing) needed for 
+      matsML.
+
 """
 
 import numpy as np
@@ -60,7 +63,7 @@ class ProcessData:
         self.data_params=data_params
 
     def extract_xy(self):
-        print ('  Reading data ... ')
+        print ('  Read data')
 
         self.data_file=self.data_params['data_file']
 
@@ -286,7 +289,7 @@ class ProcessData:
     def invert_scale_y(self,y_scaled,data_dict,message):
         """ Unscale the y data """
 
-        print ('    Unscaling y:', data_dict['y_scaling'])
+        print ('    unscaling y:', data_dict['y_scaling'])
 
         id_col=data_dict['id_col']
         y_cols=data_dict['y_cols']

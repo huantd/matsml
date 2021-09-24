@@ -1,5 +1,13 @@
-# By Huan Tran (huantd@gmail.com), 2021
-#
+""" 
+    Huan Tran (huantd@gmail.com)
+  
+    Fingerprint module: fingerprint/featurize molecules and crystals in 
+        some ways
+      - Molecules: projected Coulomb matrix, SOAP
+      - Crystal: projected Ewald sum matrix, SOAP
+
+"""
+
 import numpy as np
 import pandas as pd
 
@@ -10,11 +18,10 @@ from matsml.io import goodbye,progress_bar
 import os,math,sys
 
 class Fingerprint:
-    """ Fingerprint: compute materials fingerprints from atomic structures
+    """ 
+    Fingerprint: compute materials fingerprints from atomic structures
 
-    Parameters
-    ----------
-    data_params:     Dictionary, containing parameters needed, see manual
+      - data_params: Dictionary, containing parameters needed, see manual
 
     """
 
@@ -62,7 +69,6 @@ class Fingerprint:
             return Gaussian function 
 
         """
-
         return 1./(math.sqrt(sigma**math.pi))*np.exp(-sigma*np.power((x-r),2.))
 
 
@@ -372,7 +378,7 @@ class Fingerprint:
         from ase import io
         """
         Functionality: 
-            Compute the projected coulomb matrix of molecules using DScribe
+            Compute SOAP for molecules and crystals using DScribe
 
         """
         
@@ -386,14 +392,15 @@ class Fingerprint:
 
         periodic=True if self.fp_type=='soap_crystals' else False
 
-        average_soap=SOAP(species=species,rcut=rcut,nmax=nmax,lmax=lmax,
-            periodic=periodic,average="inner",sparse=False)
+        average_soap=SOAP(species = species, rcut = rcut, nmax = nmax,
+            lmax = lmax,periodic = periodic, average="inner", sparse = False)
 
         fp_dim=average_soap.get_number_of_features()
-        columns=['id','target']+['soap_'+str(i).zfill(4) for i in range(fp_dim)]
+        columns=['id','target']+['soap_'+str(i).zfill(4) for i in \
+            range(fp_dim)]
         soap=pd.DataFrame(columns=columns)
 
-        print ('  Computing SOAP fingerprint')
+        print ('  Computing SOAP fingerprint with DScribe')
 
         for k, v in struct_df['file_name'].items():
             sys.stdout.write('\r')
@@ -409,11 +416,12 @@ class Fingerprint:
                 str(v)]['target']).astype(float)[0]
 
             # SOAP with DScribe 
-            molec=io.read(os.path.join(self.data_loc,str(v)))
-            this_soap=[str(v),str(target)]+list(average_soap.create(molec))
+            struct=io.read(os.path.join(self.data_loc,str(v)))
+            this_soap=[str(v),str(target)]+list(average_soap.create(struct)*\
+                len(struct))
 
-            soap=soap.append(pd.DataFrame(np.array(this_soap).reshape((1,fp_dim+2)),
-                columns=columns))
+            soap=soap.append(pd.DataFrame(np.array(this_soap).\
+                reshape((1,fp_dim+2)),columns=columns))
 
         if self.verbosity==0:
             sys.stdout.write('\n')

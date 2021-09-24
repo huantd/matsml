@@ -64,7 +64,7 @@ def progress_bar(i_loop,loop_length,action):
         sys.stdout.write('\n')
 
 
-def plot_det_preds(y_cols,y_md_cols,pdf_output):
+def plot_det_preds(y_cols,y_md_cols,n_tests,pdf_output):
     """ 
     Plot results of the models trained and saved in training.csv and 
         test.csv.
@@ -75,12 +75,13 @@ def plot_det_preds(y_cols,y_md_cols,pdf_output):
     import numpy as np
     from sklearn.metrics import r2_score
 
-    print ('')
     print ('  Plot results in "training.csv" & "test.csv"')
-    test_df=pd.read_csv('test.csv')
+
     train_df=pd.read_csv('training.csv')
     n_trains=len(train_df)
-    n_tests=len(test_df)
+    if n_tests > 0:
+        test_df=pd.read_csv('test.csv')
+        n_tests=len(test_df)
 
     for y_col,y_md_col in zip(y_cols,y_md_cols):
         plt.figure(figsize=(6,6))
@@ -88,18 +89,23 @@ def plot_det_preds(y_cols,y_md_cols,pdf_output):
         plt.rc('xtick', labelsize=11)
         plt.rc('ytick', labelsize=11)
 
-        lmin=min(test_df[y_col].min(),train_df[y_col].min(),
-            test_df[y_md_col].min(),train_df[y_md_col].min())
-        lmax=max(test_df[y_col].max(),train_df[y_col].max(),
-            test_df[y_md_col].max(),train_df[y_md_col].max())
+        if n_tests > 0:
+            lmin=min(test_df[y_col].min(),train_df[y_col].min(),
+                test_df[y_md_col].min(),train_df[y_md_col].min())
+            lmax=max(test_df[y_col].max(),train_df[y_col].max(),
+                test_df[y_md_col].max(),train_df[y_md_col].max())
+        else:
+            lmin=min(train_df[y_col].min(),train_df[y_md_col].min())
+            lmax=max(train_df[y_col].max(),train_df[y_md_col].max())
+
         plt.xlim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
         plt.ylim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
 
-
         rmse_train=np.sqrt(np.mean((train_df[y_col]-train_df[y_md_col])**2))
         r2_train=r2_score(train_df[y_col],train_df[y_md_col])
-        rmse_test=np.sqrt(np.mean((test_df[y_col]-test_df[y_md_col])**2))
-        r2_test=r2_score(test_df[y_col],test_df[y_md_col])
+        if n_tests > 0:
+            rmse_test=np.sqrt(np.mean((test_df[y_col]-test_df[y_md_col])**2))
+            r2_test=r2_score(test_df[y_col],test_df[y_md_col])
         
         plt.tick_params(axis='x',which='both',bottom=True,top=False,
             labelbottom=True)
@@ -110,11 +116,16 @@ def plot_det_preds(y_cols,y_md_cols,pdf_output):
             marker='s',alpha=0.95,
             label=r'training, (rmse & $R^2$) = (%.3f & %.3f)'\
             %(rmse_train,r2_train))
-        plt.scatter(test_df[y_col],test_df[y_md_col],color='tab:blue',
-            marker='o',alpha=0.6,
-            label=r'test, (rmse & $R^2$) = (%.3f & %.3f)'\
-            %(rmse_test,r2_test))
+
+        print ('    training, (rmse & R2) = (%.3f & %.3f)' %(rmse_train,r2_train))
+        if n_tests > 0:
+            plt.scatter(test_df[y_col],test_df[y_md_col],color='tab:blue',
+                marker='o',alpha=0.6,
+                label=r'test, (rmse & $R^2$) = (%.3f & %.3f)'\
+                %(rmse_test,r2_test))
+            print ('    test, (rmse & R2) = (%.3f & %.3f)' %(rmse_test,r2_test))
         plt.legend(loc="lower right",fontsize = 11)
+
         if pdf_output:
             plt.savefig('model_'+str(y_col)+'.pdf')
             print ('    model_'+str(y_col)+'.pdf saved')
@@ -124,7 +135,7 @@ def plot_det_preds(y_cols,y_md_cols,pdf_output):
         plt.close()
 
 
-def plot_prob_preds(y_cols,y_md_cols,yerr_md_cols,pdf_output):
+def plot_prob_preds(y_cols,y_md_cols,yerr_md_cols,n_tests,pdf_output):
     """ 
     Plot results of the models trained and saved in training.csv and 
         test.csv.
@@ -137,32 +148,39 @@ def plot_prob_preds(y_cols,y_md_cols,yerr_md_cols,pdf_output):
 
     print ('')
     print ('  Plot results in "training.csv" & "test.csv"')
-    test_df=pd.read_csv('test.csv')
+
     train_df=pd.read_csv('training.csv')
-
-    print (train_df)
-
     n_trains=len(train_df)
-    n_tests=len(test_df)
+    if n_tests > 0:
+        test_df=pd.read_csv('test.csv')
+        n_tests=len(test_df)
 
+
+    # First, plot the parity plots
     for y_col,y_md_col,yerr_md_col in zip(y_cols,y_md_cols,yerr_md_cols):
         plt.figure(figsize=(6,6))
         
         plt.rc('xtick', labelsize=11)
         plt.rc('ytick', labelsize=11)
 
-        lmin=min(test_df[y_col].min(),train_df[y_col].min(),
-            test_df[y_md_col].min(),train_df[y_md_col].min())
-        lmax=max(test_df[y_col].max(),train_df[y_col].max(),
-            test_df[y_md_col].max(),train_df[y_md_col].max())
+        if n_tests > 0:
+            lmin=min(test_df[y_col].min(),train_df[y_col].min(),
+                test_df[y_md_col].min(),train_df[y_md_col].min())
+            lmax=max(test_df[y_col].max(),train_df[y_col].max(),
+                test_df[y_md_col].max(),train_df[y_md_col].max())
+        else:
+            lmin=min(train_df[y_col].min(),train_df[y_md_col].min())
+            lmax=max(train_df[y_col].max(),train_df[y_md_col].max())
+
         plt.xlim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
         plt.ylim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
 
 
         rmse_train=np.sqrt(np.mean((train_df[y_col]-train_df[y_md_col])**2))
         r2_train=r2_score(train_df[y_col],train_df[y_md_col])
-        rmse_test=np.sqrt(np.mean((test_df[y_col]-test_df[y_md_col])**2))
-        r2_test=r2_score(test_df[y_col],test_df[y_md_col])
+        if n_tests > 0:
+            rmse_test=np.sqrt(np.mean((test_df[y_col]-test_df[y_md_col])**2))
+            r2_test=r2_score(test_df[y_col],test_df[y_md_col])
         
         plt.tick_params(axis='x',which='both',bottom=True,top=False,
             labelbottom=True)
@@ -173,10 +191,11 @@ def plot_prob_preds(y_cols,y_md_cols,yerr_md_cols,pdf_output):
             train_df[yerr_md_col],color='tab:red',fmt='s',alpha=0.95,
             label=r'training, (rmse & $R^2$) = (%.3f & %.3f)'\
             %(rmse_train,r2_train))
-        plt.errorbar(test_df[y_col],test_df[y_md_col],yerr=\
-            test_df[yerr_md_col],color='tab:blue',fmt='o',alpha=0.6,
-            label=r'test, (rmse & $R^2$) = (%.3f & %.3f)'\
-            %(rmse_test,r2_test))
+        if n_tests > 0:
+            plt.errorbar(test_df[y_col],test_df[y_md_col],yerr=\
+                test_df[yerr_md_col],color='tab:blue',fmt='o',alpha=0.6,
+                label=r'test, (rmse & $R^2$) = (%.3f & %.3f)'\
+                %(rmse_test,r2_test))
         plt.legend(loc="lower right",fontsize = 11)
         if pdf_output:
             plt.savefig('model_'+str(y_col)+'.pdf')
@@ -185,3 +204,4 @@ def plot_prob_preds(y_cols,y_md_cols,yerr_md_cols,pdf_output):
             print ('    showing '+str(y_col))
             plt.show()
         plt.close()
+
