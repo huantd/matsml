@@ -34,7 +34,6 @@ from sklearn.svm import SVR
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
 
-
 class FCNN:
     """ 
     FCNN: A generic fully-connected Neuplot_train_testralNet with TensorFlow
@@ -61,6 +60,9 @@ class FCNN:
         self.batch_size=self.model_params['batch_size']
         self.rmse_cv=self.model_params['rmse_cv']
 
+        # Check parameters
+        self.check_params()
+
         print (' ')
         print ('  Learning fingerprinted/featured data')
         print ('    algorithm'.ljust(32),\
@@ -70,9 +72,6 @@ class FCNN:
         print ('    epochs'.ljust(32),self.epochs)
         print ('    optimizer'.ljust(32),self.optimizer)
         print ('    nfold_cv'.ljust(32),self.nfold_cv)
-
-        # Check parameters
-        self.check_params()
 
 
     def load_data(self):
@@ -104,6 +103,7 @@ class FCNN:
         Make sure the parameters are valid 
         """
 
+        print ('  ')
         print ('  Checking parameters')
         print ('    all passed'.ljust(32), 'True')
 
@@ -260,6 +260,10 @@ class PrFCNN:
         self.verbosity=self.model_params['verbosity']
         self.batch_size=self.model_params['batch_size']
         self.rmse_cv=self.model_params['rmse_cv']
+
+        # Check parameters
+        self.check_params()
+
         print (' ')
         print ('  Learning fingerprinted/featured data')
         print ('    algorithm'.ljust(32),'Probabilistic NeuralNet w/ TensorFlow-Probability')
@@ -267,10 +271,9 @@ class PrFCNN:
         print ('    activ_funct'.ljust(32),self.activ_funct)
         print ('    epochs'.ljust(32),self.epochs)
         print ('    optimizer'.ljust(32),self.optimizer)
+        print ('    loss'.ljust(32),self.loss)
         print ('    nfold_cv'.ljust(32),self.nfold_cv)
 
-        # Check parameters
-        self.check_params()
      
 
     def load_data(self):
@@ -336,13 +339,17 @@ class PrFCNN:
         Make sure the parameters are valid 
         """
 
+        print ('  ')
         print ('  Checking parameters')
         if self.data_params['y_scaling']!='none': 
             raise ValueError \
-                  ('      ERROR: No y scaling with PrFCNN')
+                  ('     ERROR: No y scaling with PrFCNN')
         elif len(self.data_params['y_cols'])>1: 
             raise ValueError \
-                  ('      ERROR: No more than 1 targets with PrFCNN')
+                  ('     ERROR: No more than 1 targets with PrFCNN')
+        elif self.loss != 'negloglik': 
+            self.loss = 'negloglik'
+            print ('     WARNING: "negloglik" must & will be used for loss')
         else:
             print ('    all passed'.ljust(32), 'True')
 
@@ -469,6 +476,10 @@ class KRR:
         self.gamma=self.model_params['gamma']
         self.n_grids=self.model_params['n_grids']
         self.model_file=self.model_params['model_file']
+
+        # Check parameters
+        self.check_params()
+
         print (' ')
         print ('  Learning fingerprinted/featured data')
         print ('    algorithm'.ljust(32),'kernel ridge regression w/ scikit-learn')
@@ -478,12 +489,10 @@ class KRR:
         print ('    gamma'.ljust(32),self.gamma)
         print ('    number of alpha/gamma grids'.ljust(32),self.n_grids)
 
-        # Check parameters
-        self.check_params()
-
     def check_params(self):
         """ Make sure the parameters are valid """
 
+        print ('  ')
         print ('  Checking parameters')
         if len(self.data_params['y_cols'])>1: 
             raise ValueError \
@@ -579,6 +588,10 @@ class GPR:
         self.n_restarts_optimizer=self.model_params['n_restarts_optimizer']
         self.rmse_cv=self.model_params['rmse_cv']
         self.optimizer='fmin_l_bfgs_b'
+
+        # Check parameter
+        self.check_params()
+
         # Echo main parameters
         print (' ')
         print ('  Learning fingerprinted/featured data')
@@ -587,9 +600,6 @@ class GPR:
         print ('    optimizer'.ljust(32),self.optimizer)
         print ('    n_restarts_optimizer'.ljust(32),self.n_restarts_optimizer)
         print ('    rmse_cv'.ljust(32),self.rmse_cv)
-
-        # Check parameter
-        self.check_params()
 
     def load_data(self):
         """ Import train/test data and parameters to RFR """
@@ -623,6 +633,7 @@ class GPR:
         Make sure the parameters are valid 
         """
 
+        print ('  ')
         print ('  Checking parameters')
         if len(self.data_params['y_cols'])>1: 
             raise ValueError \
@@ -758,6 +769,9 @@ class RFR:
         self.get_feature_importances=self.model_params['get_feature_importances'] 
         self.rmse_cv=self.model_params['rmse_cv']
 
+        # Check parameter
+        self.check_params()
+
         # Echo main parameters
         print (' ')
         print ('  Learning fingerprinted/featured data')
@@ -768,9 +782,6 @@ class RFR:
         print ('    criterion'.ljust(32),self.criterion)
         print ('    get_feature_importances'.ljust(32),self.get_feature_importances)
         print ('    random_state'.ljust(32),self.random_state)
-
-        # Check parameter
-        self.check_params()
 
     def load_data(self):
         """ Import train/test data and parameters to RFR """
@@ -804,6 +815,7 @@ class RFR:
         Make sure the parameters are valid 
         """
 
+        print ('  ')
         print ('  Checking parameters')
         if len(self.data_params['y_cols'])>1: 
             raise ValueError \
@@ -943,6 +955,9 @@ class SVecR:
         self.model_file=self.model_params['model_file']
         self.rmse_cv=self.model_params['rmse_cv']
 
+        # Check parameter
+        self.check_params()
+
         # Echo main parameters
         print (' ')
         print ('  Learning fingerprinted/featured data')
@@ -951,9 +966,6 @@ class SVecR:
         print ('    regular_param'.ljust(32),self.regular_param)
         print ('    max_iter'.ljust(32),self.max_iter)
         print ('    nfold_cv'.ljust(32),self.nfold_cv)
-
-        # Check parameter
-        self.check_params()
 
     def load_data(self):
         """ Import train/test data and parameters to SVR """
@@ -987,6 +999,7 @@ class SVecR:
         Make sure the parameters are valid 
         """
 
+        print ('  ')
         print ('  Checking parameters')
         if len(self.data_params['y_cols'])>1: 
             raise ValueError \

@@ -45,10 +45,10 @@ class Datasets:
                 fname=data_url.split('/')[-1]
                 os.system('wget -O '+fname+' --no-check-certificate '+data_url)
                 if fname.startswith('fp_'):
-                    print ('    Data saved in '+fname)
+                    print ('  Data saved in '+fname)
                 else:
                     os.system('tar -xf '+fname)
-                    print ('    Data saved in '+dataset_name)
+                    print ('  Data saved in '+dataset_name)
             else:
                 raise ValueError('  ERROR: dataset '+str(dataset_name)+\
                         ' not found.')

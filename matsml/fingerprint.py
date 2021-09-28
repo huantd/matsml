@@ -90,6 +90,10 @@ class Fingerprint:
         elif self.fp_type=='pesm_crystals':
             fp=self.get_pesm_dsc()
 
+        # Remove constant columns
+        fp=fp.loc[:,(fp!=fp.iloc[0]).any()]
+
+        # Save
         fp.to_csv(self.fp_file,index=False)
         print ('  Done fingerprinting, results saved in %s'%(self.fp_file))
 
@@ -189,9 +193,6 @@ class Fingerprint:
         if self.verbosity==0:
             sys.stdout.write('\n')
 
-        # Remove constant columns
-        pcm=pcm.loc[:,(pcm!=pcm.iloc[0]).any()]
-
         return pcm
         
 
@@ -288,9 +289,6 @@ class Fingerprint:
         if self.verbosity==0:
             sys.stdout.write('\n')
 
-        # Remove constant columns
-        pesm=pesm.loc[:,(pesm!=pesm.iloc[0]).any()]
-
         return pesm
         
 
@@ -367,9 +365,6 @@ class Fingerprint:
         if self.verbosity==0:
             sys.stdout.write('\n')
 
-        # Remove constant columns
-        pcm=pcm.loc[:,(pcm!=pcm.iloc[0]).any()]
-
         return pcm
         
 
@@ -425,9 +420,6 @@ class Fingerprint:
 
         if self.verbosity==0:
             sys.stdout.write('\n')
-
-        # Remove constant columns
-        soap=soap.loc[:,(soap!=soap.iloc[0]).any()]
 
         return soap
 
