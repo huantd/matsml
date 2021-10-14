@@ -7,7 +7,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="matsml",
-    version="1.0.0",
+    version="1.0.1",
     author="Huan Tran",
     author_email="huantd@gmail.com",
     description="A toolkit for easy machine learning in materials science",
