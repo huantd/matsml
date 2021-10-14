@@ -1,7 +1,7 @@
 # matsml
 A machine learning toolkit for materials science
 
-Dependencies
+Packages needed for matsml
  - numpy (https://numpy.org/)
  - pandas (https://pandas.pydata.org/)
  - scikit-learn (https://scikit-learn.org/stable/)
