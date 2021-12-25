@@ -19,7 +19,7 @@ class AtomicStructure:
     def read_xyz(self,filename):
         """
         Functionality: 
-            Read the xyz file and return all the information obtained
+            Read a xyz file and return all the information obtained
         Input:     
             filename: string, name of the file to be read
         Returns:
@@ -48,7 +48,6 @@ class AtomicStructure:
         
         return nat,nspecs,specs,xyz_df
 
-
 def progress_bar(i_loop,loop_length,action):
     """ Progress bar for some slow works """
 
@@ -62,7 +61,6 @@ def progress_bar(i_loop,loop_length,action):
         sys.stdout.flush()
     elif action=='finish':
         sys.stdout.write('\n')
-
 
 def plot_det_preds(y_cols,y_md_cols,n_tests,pdf_output):
     """ 
@@ -133,6 +131,21 @@ def plot_det_preds(y_cols,y_md_cols,n_tests,pdf_output):
             print ('    showing '+str(y_col))
             plt.show()
         plt.close()
+
+
+def get_struct_params(data_loc, struct_df):
+    from ase import io
+    import os
+ 
+    specs = []
+    nats = []
+    for k, v in struct_df['file_name'].items():
+        struct = io.read(os.path.join(data_loc,str(v)))
+        specs = specs + list(set(struct.get_chemical_symbols()))
+        nats = nats + [len(struct)]
+    specs = list(set(specs))
+
+    return max(nats), len(specs), specs
 
 
 def plot_prob_preds(y_cols,y_md_cols,yerr_md_cols,n_tests,pdf_output):

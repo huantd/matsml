@@ -21,9 +21,9 @@ from matsml.io import goodbye
 from matsml.io import plot_det_preds, plot_prob_preds
 
 import tensorflow as tf
-from keras.layers import Dense,InputLayer
-from keras.models import Sequential
-from keras.optimizers import Nadam
+from tensorflow.keras.layers import Dense,InputLayer
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import Nadam
 import tensorflow_probability as tfp
 from sklearn.model_selection import GridSearchCV
 from sklearn.kernel_ridge import KernelRidge

@@ -14,7 +14,7 @@ import pandas as pd
 
 from matsml.data import ProcessData
 from matsml.io import AtomicStructure
-from matsml.io import goodbye,progress_bar
+from matsml.io import goodbye, progress_bar, get_struct_params
 import os,math,sys
 
 class Fingerprint:
@@ -34,8 +34,6 @@ class Fingerprint:
         self.fp_type=self.data_params['fp_type']
         self.summary=self.data_params['summary']
         self.data_loc=self.data_params['data_loc']
-        self.n_atoms_max=self.data_params['n_atoms_max']
-        self.species=self.data_params['species']
         self.fp_file=self.data_params['fp_file']
         self.fp_dim=self.data_params['fp_dim']
         self.verbosity=self.data_params['verbosity']
@@ -43,11 +41,9 @@ class Fingerprint:
         print ('  Atomic structure fingerprinting')
         print ('    summary'.ljust(32),self.summary)
         print ('    data_loc'.ljust(32),self.data_loc)
-        print ('    species'.ljust(32),self.species)
         print ('    fp_type'.ljust(32),self.fp_type)
         print ('    fp_file'.ljust(32),self.fp_file)
         print ('    fp_dim'.ljust(32),self.fp_dim)
-        print ('    n_atoms_max'.ljust(32),self.n_atoms_max)
         print ('    verbosity'.ljust(32),self.verbosity)
 
 
@@ -222,7 +218,7 @@ class Fingerprint:
         self.read_input()
         fp_dim=self.fp_dim
         struct_df=self.structs
-        n_atoms_max=self.n_atoms_max
+        n_atoms_max, nspecs, species = get_struct_params(self.data_loc, struct_df)
 
         # Ewald summation parameters
         rcut=4
@@ -304,7 +300,7 @@ class Fingerprint:
         self.read_input()
         fp_dim=self.fp_dim
         struct_df=self.structs
-        n_atoms_max=self.n_atoms_max
+        n_atoms_max, nspecs, species = get_struct_params(self.data_loc, struct_df)
         
         columns=['id','target']+['pcm_'+str(i).zfill(4) for i in range(fp_dim)]
         pcm=pd.DataFrame(columns=columns)
@@ -378,12 +374,12 @@ class Fingerprint:
         """
         
         self.read_input()
-        struct_df=self.structs
-        species=self.species
+        struct_df = self.structs
+        n_atoms_max, nspecs, species = get_struct_params(self.data_loc, struct_df)
 
         rcut=8.0
-        nmax=5
-        lmax=4
+        nmax=7
+        lmax=6
 
         periodic=True if self.fp_type=='soap_crystals' else False
 

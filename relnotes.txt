@@ -1,0 +1,5 @@
+---
+v1.0.2, Dec. 24, 2021
+- remove n_atoms_max and species from fingerprint and tested
+- update ex4_hoips
+- add release notes (this file) to keep track changes from now on
