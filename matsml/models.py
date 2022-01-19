@@ -186,14 +186,14 @@ class FCNN:
             ncv=ncv+1
 
             if self.rmse_cv:
-                y_cv_test_md=nn_model.predict(x_cv_test)
-                pred_cv_test=pd.concat([self.train_set.iloc[test_cv]\
+                y_cv_test_md = nn_model.predict(x_cv_test)
+                pred_cv_test = pd.concat([self.train_set.iloc[test_cv]\
                     [self.id_col+self.sel_cols+self.y_cols]\
                     .reset_index(),pd.DataFrame(y_cv_test_md,
                     columns=self.y_md_cols)],axis=1,ignore_index=True)
-                pred_cv_test.columns=['index']+self.id_col+\
+                pred_cv_test.columns = ['index']+self.id_col+\
                     self.sel_cols+self.y_cols+self.y_md_cols
-                unscaled_cv_test=data_processor.invert_scale_y(pred_cv_test,
+                unscaled_cv_test = data_processor.invert_scale_y(pred_cv_test,
                     self.data_dict,'cv_test')
 
         print('    Optimal ncv: ',ncv_opt,"; optimal NET saved")
@@ -688,9 +688,11 @@ class GPR:
             rmse_cv_test=np.sqrt(mean_squared_error(y_cv_test,y_cv_test_md))
             
             if rmse_cv_test < opt_rmse:
-                opt_rmse=rmse_cv_test
-                opt_gp=gp
-                ncv_opt=ncv
+            #if np.absolute(rmse_cv_test -rmse_cv_train) < opt_rmse:
+                opt_rmse = rmse_cv_test
+                #opt_rmse = np.absolute(rmse_cv_test -rmse_cv_train)
+                opt_gp = gp
+                ncv_opt = ncv
 
             print (tpl1.format(ncv,rmse_cv_train,rmse_cv_test,opt_rmse))
             ncv = ncv+1
@@ -707,13 +709,13 @@ class GPR:
                     self.data_dict,'cv_test')
 
         # get optimal kernel, fit the whole training set
-        opt_gp=opt_gp
-        gp_final=GaussianProcessRegressor(kernel=opt_gp.kernel_,alpha=0,
+        opt_gp = opt_gp
+        gp_final = GaussianProcessRegressor(kernel=opt_gp.kernel_,alpha=0,
             optimizer=None)
         gp_final.fit(self.x_train,self.y_train)
 
         # Save model
-        model_file=os.path.join(os.getcwd(),self.model_file)
+        model_file = os.path.join(os.getcwd(),self.model_file)
         joblib.dump(gp_final,model_file)
 
         print ('  GPR model trained, now make predictions & invert scaling')

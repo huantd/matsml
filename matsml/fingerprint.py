@@ -55,7 +55,9 @@ class Fingerprint:
         """
 
         print ('  Read input')
-        self.structs=pd.read_csv(self.summary,delimiter=',')
+        data_tmp = pd.read_csv(self.summary,delimiter=',')
+        self.structs = data_tmp[data_tmp.target.notnull()]
+
         print ('    num_structs'.ljust(32),len(self.structs))
 
 

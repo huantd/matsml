@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 from sklearn import preprocessing
 from matsml.io import goodbye
-import io, os, requests
+import io, os, requests, heapq, random
+from sklearn.metrics import mean_squared_error
 
 
 class Datasets:
@@ -67,25 +68,31 @@ class ProcessData:
 
         self.data_file=self.data_params['data_file']
 
-        id_col=self.data_params['id_col']
+        # ID column 
+        id_col = self.data_params['id_col']
         if len(id_col) > 1:
             raise ValueError('  ERROR: There must be one ID column only')
         else:
-            self.id_col=id_col
+            self.id_col = id_col
 
-        y_cols=self.data_params['y_cols']
-        self.y_cols=y_cols
+        y_cols = self.data_params['y_cols']
+        self.y_cols = y_cols
 
-        y_dim=len(y_cols)
-        self.y_dim=y_dim
+        y_dim = len(y_cols)
+        self.y_dim = y_dim
 
-        comment_cols=self.data_params['comment_cols']
-        self.comment_cols=comment_cols
+        comment_cols = self.data_params['comment_cols']
+        self.comment_cols = comment_cols
 
-        data_fp=pd.read_csv(self.data_file,delimiter=',',header=0,
+        data_fp = pd.read_csv(self.data_file,delimiter=',',header=0,
             low_memory=False)
 
-        self.data_size=len(data_fp)
+        self.data_size = len(data_fp)
+
+        # No duplicate allowed in the ID column
+        n_ids = len(list(set(list(data_fp[self.id_col[0]]))))
+        if n_ids != self.data_size:
+            raise ValueError('  ERROR: There are duplicates in the ID columns')
 
         # list of columns for x
         x_cols=[col for col in list(data_fp.columns) if col not in 
@@ -111,10 +118,8 @@ class ProcessData:
         tpl='{} {}{}{}{}'
         print ('    data file'.ljust(32),self.data_file)
         print ('    data size'.ljust(32),self.data_size)
-        print (tpl.format('    training size'.ljust(32),self.n_trains,
-            ' (',round(100*self.n_trains/self.data_size,1),' %)'))
-        print (tpl.format('    test size'.ljust(32),self.n_tests,
-            ' (',round(100*self.n_tests/self.data_size,1),' %)'))
+        print ('    training size'.ljust(32),round(100*self.n_trains/self.data_size,1),' %')
+        print ('    test size'.ljust(32),round(100*self.n_tests/self.data_size,1),' %')
         print ('    x dimensionality'.ljust(32),len(self.x_cols))
         print ('    y dimensionality'.ljust(32),len(self.y_cols))
         print ('    y label(s)'.ljust(32),self.y_cols)
@@ -262,7 +267,7 @@ class ProcessData:
     def split_train_test(self):
         """ 
         Prepare train and test sets using the sampling method specified. 
-        More than 'random' will be available.
+        'random' and 'stratified' currently available, more to come.
         """
 
         print ('  Prepare train/test sets'.ljust(32),\
@@ -272,18 +277,52 @@ class ProcessData:
 
         id_col=self.id_col
         scaled_data=self.scaled_data
+
         if self.sampling=='random':
             train_set_ids=\
                 scaled_data.sample(n=self.n_trains)[id_col[0]].tolist()
             test_set_ids=[idx for idx in scaled_data[id_col[0]].tolist() 
                 if idx not in train_set_ids]
+
         elif self.sampling=='stratified':
-            print ('      Stratified sampling will be available shortly')
+            """ Stratified on a PCA-projected manifold"""
+
+            from sklearn.decomposition import PCA
+            from scipy.stats import binned_statistic_2d
+
+            train_set_ids = []
+
+            data = np.array(self.x_scaled[self.x_cols])
+            pca = PCA(n_components=2)
+            x_pca = pca.fit_transform(data)
+            
+            # Do some statistics on the PCA trasformed data
+            statistic,xedges,yedges,binnumber = binned_statistic_2d(x_pca[:,0],\
+                x_pca[:,1],data,statistic='count',bins=5)
+
+            # bin ID and number of entries in each bin
+            bin_ids,bin_freqs = np.unique(binnumber,return_counts=True)
+
+            # list of entries to be selected from each bin. 
+            b_dists = [min(max(1,round(bf*self.n_trains/self.data_size)), bf)\
+                for bf in bin_freqs]
+
+            #update self.n_trains. Need more work here to avoid this adjustment
+            self.n_trains = sum(b_dists)
+
+            for i in range(len(bin_ids)):
+                train_set_ids = train_set_ids+random.sample(list(np.where(\
+                    binnumber==bin_ids[i])[0]),b_dists[i])
+
+            test_set_ids = [idx for idx in scaled_data[id_col[0]].tolist() 
+                if idx not in train_set_ids]
+
         else:
             raise ValueError \
                   ('      ERROR: unavailable sampling')
-        self.train_set=scaled_data[scaled_data[id_col[0]].isin(train_set_ids)]
-        self.test_set=scaled_data[scaled_data[id_col[0]].isin(test_set_ids)]
+
+        self.train_set = scaled_data[scaled_data[id_col[0]].isin(train_set_ids)]
+        self.test_set = scaled_data[scaled_data[id_col[0]].isin(test_set_ids)]
 
 
     def invert_scale_y(self,y_scaled,data_dict,message):
@@ -310,7 +349,7 @@ class ProcessData:
         # Starting from y_scaled, unscale the data in y_cols, and add 
         # to y_org, then select nonan to get y_unscaled
         #
-        if len(sel_cols) > 0:
+        if len(sel_cols) > 0:                                # selecter columns
             for idn, jy, sel in ((a,b,c) for a in ids_list for b in 
                     range(y_dim) for c in sel_cols):
                 idx0=np.array(y_org[y_org[id_col[0]]==idn].index)[0]
@@ -340,14 +379,14 @@ class ProcessData:
 
             # Get RMSE of each prop
             for sel in sel_cols:
-                y_sel=y_unscaled.loc[y_org[sel]==1] # work needed
+                y_sel=y_unscaled.loc[y_org[sel]==1]     # more work needed here
                 for y_col in y_cols:
                     this_rmse=np.sqrt(np.mean((np.array(y_sel[y_col])-\
                         np.array(y_sel['md_'+y_col]))**2))
                     print ("      rmse",str(message).ljust(12),sel,
                         str(y_col).ljust(16),round(this_rmse,6))
 
-        elif len(sel_cols)==0:
+        elif len(sel_cols)==0:                               # selecter columns
             for idn, jy in ((a,b) for a in ids_list for b in range(y_dim)):
                 idx0=np.array(y_org[y_org[id_col[0]]==idn].index)[0]
                 idx1=np.array(y_scaled[y_scaled[id_col[0]]==\
@@ -357,11 +396,11 @@ class ProcessData:
                     y_org.at[idx0,y_md_cols[jy]]=y_scaled.at[idx1,
                         y_md_cols[jy]]*delta_y+y_min.at[0,y_cols[jy]]
                     if len(yerr_md_cols)>0:
-                        y_org.at[idx0,yerr_md_cols[jy]]=y_scaled.at[idx1,
+                        y_org.at[idx0,yerr_md_cols[jy]] = y_scaled.at[idx1,
                             yerr_md_cols[jy]]*delta_y
                 elif str(y_scaling)=='normalize':
-                    y_org.at[idx0,y_md_cols[jy]]=(y_scaled.at[idx1, 
-                        y_md_cols[jy]]*y_std.at[0,y_cols[jy]])+\
+                    y_org.at[idx0,y_md_cols[jy]] = (y_scaled.at[idx1, 
+                        y_md_cols[jy]]*y_std.at[0,y_cols[jy]]) + \
                         y_mean.at[0,y_cols[jy]]
                     if len(yerr_md_cols)>0:
                         y_org.at[idx0,yerr_md_cols[jy]]=y_scaled.at[idx1, 
@@ -375,11 +414,11 @@ class ProcessData:
 
             y_unscaled=y_org.dropna(subset=y_md_cols)
 
-            for y_col in y_cols:
-                this_rmse=np.sqrt(np.mean((np.array(y_unscaled[y_col])-\
-                    np.array(y_unscaled['md_'+y_col]))**2))
-                print ("       rmse",str(message).ljust(12),str(y_col).ljust(16),
-                    round(this_rmse,6))
+            for y_col in y_cols:                                      # rmse_cv
+                this_rmse = np.sqrt(mean_squared_error(np.array(y_unscaled\
+                    [y_col]),np.array(y_unscaled['md_'+y_col])))
+                print ("       rmse",str(message).ljust(12),str(y_col).\
+                    ljust(16),round(this_rmse,6))
 
         return y_unscaled
 
@@ -407,15 +446,15 @@ class ProcessData:
         self.split_train_test()
 
         data_dict={
-            'id_col':self.id_col,'x_cols':self.x_cols,'y_cols':self.y_cols,
-            'sel_cols':self.sel_cols,'n_trains':self.n_trains,
-            'n_tests':self.n_tests,'train_set':self.train_set,
-            'test_set':self.test_set,'x_scaling':self.x_scaling,
-            'xscaler':self.xscaler,'x_scaled':self.x_scaled,
-            'y_scaling':self.y_scaling,'y_mean':self.y_mean,'y_std':self.y_std,
-            'y_max':self.y_max,'y_min':self.y_min,'y_org':self.y,
-            'y_scaled':self.y_scaled,'y_md_cols':self.y_md_cols,
-            'yerr_md_cols':self.yerr_md_cols}
+            'id_col':self.id_col, 'x_cols':self.x_cols, 'y_cols':self.y_cols,
+            'sel_cols':self.sel_cols, 'n_trains':self.n_trains,
+            'n_tests':self.n_tests, 'train_set':self.train_set,
+            'test_set':self.test_set, 'x_scaling':self.x_scaling,
+            'xscaler':self.xscaler, 'x_scaled':self.x_scaled,
+            'y_scaling':self.y_scaling, 'y_mean':self.y_mean, 
+            'y_std':self.y_std, 'y_max':self.y_max,'y_min':self.y_min,
+            'y_org':self.y, 'y_scaled':self.y_scaled, 
+            'y_md_cols':self.y_md_cols, 'yerr_md_cols':self.yerr_md_cols}
 
         return data_dict
 
