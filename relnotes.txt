@@ -1,8 +1,12 @@
+ver12feb22
+- enforce some points in training (train_ids), sampling applicable only
+- code optimization
 
-v1.1.0, Jan. 01, 2022
+ver01jan22
 - "stratified" sampling added
+- enforce no duplicate in the ID column, and more bugs
 
-v1.0.2, Dec. 24, 2021
+ver24dec21
 - remove n_atoms_max and species from fingerprint and tested
 - update ex4_hoips
 - add release notes (this file) to keep track changes from now on

@@ -8,7 +8,7 @@
 import numpy as np
 import pandas as pd
 from sklearn import preprocessing
-from matsml.io import goodbye
+from matsml.io import get_key, goodbye
 import io, os, requests, heapq, random
 from sklearn.metrics import mean_squared_error
 
@@ -60,20 +60,36 @@ class ProcessData:
     Process data needed for learning
     """
 
-    def __init__(self,data_params):
-        self.data_params=data_params
+    def __init__(self, data_params):
+        self.data_params = data_params
 
-    def extract_xy(self):
+        # List of ids that must be in training set
+        if 'train_ids' in self.data_params:
+            self.train_ids = self.data_params['train_ids']
+        else:
+            self.train_ids = []
+
+        # Default x_scaling and y_scaling is minmax
+        self.x_scaling = get_key('x_scaling', self.data_params, 'minmax')
+        self.y_scaling = get_key('y_scaling', self.data_params, 'minmax')
+
+        # Default x_scaling and y_scaling is random
+        self.sampling = get_key('sampling', self.data_params, 'random')
+
+    def read_data(self):
         print ('  Read data')
 
         self.data_file=self.data_params['data_file']
 
         # ID column 
         id_col = self.data_params['id_col']
-        if len(id_col) > 1:
+        if len(id_col) != 1:
             raise ValueError('  ERROR: There must be one ID column only')
         else:
-            self.id_col = id_col
+            if id_col[0] =='index':
+                raise ValueError('  ERROR: "index" reserved, dont use for ID column')
+            else:
+                self.id_col = id_col
 
         y_cols = self.data_params['y_cols']
         self.y_cols = y_cols
@@ -95,24 +111,24 @@ class ProcessData:
             raise ValueError('  ERROR: There are duplicates in the ID columns')
 
         # list of columns for x
-        x_cols=[col for col in list(data_fp.columns) if col not in 
+        x_cols = [col for col in list(data_fp.columns) if col not in 
             (y_cols+id_col+comment_cols)]
-        self.x_cols=x_cols
+        self.x_cols = x_cols
 
         # list of selector cols
-        sel_cols=[col for col in x_cols if "selector" in col] 
-        self.sel_cols=sel_cols
+        sel_cols = [col for col in x_cols if "selector" in col] 
+        self.sel_cols = sel_cols
 
         # values of sel cols
-        sel_vals=data_fp[sel_cols].drop_duplicates() 
-        self.sel_vals=sel_vals
+        sel_vals = data_fp[sel_cols].drop_duplicates() 
+        self.sel_vals = sel_vals
 
         # x and y data for learning
-        self.y=data_fp[id_col+sel_cols+y_cols]
-        self.x=data_fp[id_col+x_cols]
+        self.y = data_fp[id_col+sel_cols+y_cols]
+        self.x = data_fp[id_col+x_cols]
 
-        self.n_trains=int(self.data_params['n_trains']*self.data_size)
-        self.n_tests=self.data_size - self.n_trains
+        self.n_trains = int(self.data_params['n_trains']*self.data_size)
+        self.n_tests = self.data_size-self.n_trains
 
         # Print some data parameters
         tpl='{} {}{}{}{}'
@@ -128,25 +144,25 @@ class ProcessData:
         """ Scale x before learning """
         import joblib
 
-        xscaler_file='xscaler.pkl'
+        xscaler_file = 'xscaler.pkl'
 
-        x=self.x
-        self.x_scaling=self.data_params['x_scaling']
-        print ('  Scaling x'.ljust(32),self.x_scaling)
+        x = self.x
+
+        print ('  Scaling x'.ljust(32), self.x_scaling)
         
-        if self.x_scaling=='minmax':
-            self.xscaler=preprocessing.MinMaxScaler()
-            x_scaled=self.xscaler.fit_transform(x.drop(self.id_col,axis=1))
+        if self.x_scaling == 'minmax':
+            self.xscaler = preprocessing.MinMaxScaler()
+            x_scaled = self.xscaler.fit_transform(x.drop(self.id_col,axis=1))
             joblib.dump(self.xscaler,xscaler_file) 
             print ('    xscaler saved in'.ljust(32),xscaler_file)
 
-        elif self.x_scaling=='none':
-            x_scaled=x.drop(self.id_col,axis=1)
+        elif self.x_scaling == 'none':
+            x_scaled = x.drop(self.id_col,axis=1)
         
         # Convert nparray back pandas and stack the ID column
-        x_scaled_df=pd.DataFrame(x_scaled,columns=self.x_cols)
-        x_scaled_df[self.id_col]=x[self.id_col]
-        self.x_scaled=x_scaled_df
+        x_scaled_df = pd.DataFrame(x_scaled,columns=self.x_cols)
+        x_scaled_df[self.id_col] = x[self.id_col]
+        self.x_scaled = x_scaled_df
 
     def scale_y(self):
         """ 
@@ -165,22 +181,21 @@ class ProcessData:
                  and it must be 1.
         """
 
-        y=self.y
-        y_cols=self.y_cols
-        y_dim=self.y_dim
-        sel_cols=self.sel_cols
-        self.y_scaling=self.data_params['y_scaling']
+        y = self.y
+        y_cols = self.y_cols
+        y_dim = self.y_dim
+        sel_cols = self.sel_cols
         print ('  Scaling y'.ljust(32),self.y_scaling)
 
         # Compute some distribution parameters and do scaling
         if len(sel_cols) > 0:
-            y_mean=pd.DataFrame(columns=['sel']+y_cols)
-            y_std=pd.DataFrame(columns=['sel']+y_cols)
-            y_min=pd.DataFrame(columns=['sel']+y_cols)
-            y_max=pd.DataFrame(columns=['sel']+y_cols)
+            y_mean = pd.DataFrame(columns=['sel']+y_cols)
+            y_std = pd.DataFrame(columns=['sel']+y_cols)
+            y_min = pd.DataFrame(columns=['sel']+y_cols)
+            y_max = pd.DataFrame(columns=['sel']+y_cols)
             
             for sel in sel_cols:
-                y_sel=y[y[sel]==1]
+                y_sel = y[y[sel]==1]
             
                 this_row=pd.DataFrame([np.mean(np.array(y_sel[col])) for col 
                     in y_cols],columns=y_cols)
@@ -202,10 +217,10 @@ class ProcessData:
                 this_row['sel']=sel
                 y_max=y_max.append(this_row,ignore_index=True)
             
-            self.y_mean=y_mean
-            self.y_std=y_std
-            self.y_min=y_min
-            self.y_max=y_max
+            self.y_mean = y_mean
+            self.y_std = y_std
+            self.y_min = y_min
+            self.y_max = y_max
 
             y_scaled=pd.DataFrame(columns=self.id_col+sel_cols+y_cols)
             y_scaled[self.id_col]=y[self.id_col] 
@@ -270,18 +285,25 @@ class ProcessData:
         'random' and 'stratified' currently available, more to come.
         """
 
-        print ('  Prepare train/test sets'.ljust(32),\
-            self.data_params['sampling'])
+        print ('  Prepare train/test sets'.ljust(32),self.sampling)
 
-        self.sampling=self.data_params['sampling']
+        id_col = self.id_col
+        scaled_data = self.scaled_data
 
-        id_col=self.id_col
-        scaled_data=self.scaled_data
+        # IDs that must be in training set
+        train_ids = self.train_ids
+
+        # reduced data
+        scaled_data_red = scaled_data[~scaled_data[id_col[0]].isin(train_ids)]
+
+        # training set initialized
+        train_set_ids = [idx for idx in train_ids]
 
         if self.sampling=='random':
-            train_set_ids=\
-                scaled_data.sample(n=self.n_trains)[id_col[0]].tolist()
-            test_set_ids=[idx for idx in scaled_data[id_col[0]].tolist() 
+            for idx in scaled_data_red.sample(n=self.n_trains-len(train_ids))\
+                    [id_col[0]].tolist():
+                train_set_ids.append(idx)
+            test_set_ids = [idx for idx in scaled_data[id_col[0]].tolist() 
                 if idx not in train_set_ids]
 
         elif self.sampling=='stratified':
@@ -312,7 +334,7 @@ class ProcessData:
 
             for i in range(len(bin_ids)):
                 train_set_ids = train_set_ids+random.sample(list(np.where(\
-                    binnumber==bin_ids[i])[0]),b_dists[i])
+                    binnumber==bin_ids[i])[0]), b_dists[i])
 
             test_set_ids = [idx for idx in scaled_data[id_col[0]].tolist() 
                 if idx not in train_set_ids]
@@ -342,8 +364,8 @@ class ProcessData:
         y_md_cols=data_dict['y_md_cols']
         yerr_md_cols=data_dict['yerr_md_cols']
 
-        y_org=y_org[id_col+sel_cols+y_cols]
-        y_dim=len(y_cols)
+        y_org = y_org[id_col+sel_cols+y_cols]
+        y_dim = len(y_cols)
         ids_list = list(y_scaled[id_col[0]])
 
         # Starting from y_scaled, unscale the data in y_cols, and add 
@@ -352,8 +374,8 @@ class ProcessData:
         if len(sel_cols) > 0:                                # selecter columns
             for idn, jy, sel in ((a,b,c) for a in ids_list for b in 
                     range(y_dim) for c in sel_cols):
-                idx0=np.array(y_org[y_org[id_col[0]]==idn].index)[0]
-                idx1=np.array(y_scaled[y_scaled[id_col[0]]==\
+                idx0 = np.array(y_org[y_org[id_col[0]]==idn].index)[0]
+                idx1 = np.array(y_scaled[y_scaled[id_col[0]]==\
                     idn].index)[0]
 
                 if y_scaled.at[idx1,sel] > 0.0:
@@ -386,10 +408,10 @@ class ProcessData:
                     print ("      rmse",str(message).ljust(12),sel,
                         str(y_col).ljust(16),round(this_rmse,6))
 
-        elif len(sel_cols)==0:                               # selecter columns
+        elif len(sel_cols) == 0:                               # selecter columns
             for idn, jy in ((a,b) for a in ids_list for b in range(y_dim)):
-                idx0=np.array(y_org[y_org[id_col[0]]==idn].index)[0]
-                idx1=np.array(y_scaled[y_scaled[id_col[0]]==\
+                idx0 = np.array(y_org[y_org[id_col[0]]==idn].index)[0]
+                idx1 = np.array(y_scaled[y_scaled[id_col[0]]==\
                     idn].index)[0]
                 if str(y_scaling) == 'minmax':
                     delta_y=(y_max.at[0,y_cols[jy]]-y_min.at[0,y_cols[jy]])
@@ -428,7 +450,7 @@ class ProcessData:
         """
 
         # Extract x and y data from input file
-        self.extract_xy()
+        self.read_data()
 
         # Scale x 
         self.scale_x()

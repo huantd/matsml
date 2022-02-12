@@ -17,8 +17,7 @@ import os,joblib,warnings
 import numpy as np
 import pandas as pd
 from matsml.data import ProcessData
-from matsml.io import goodbye
-from matsml.io import plot_det_preds, plot_prob_preds
+from matsml.io import get_key, goodbye, plot_det_preds, plot_prob_preds
 
 import tensorflow as tf
 from tensorflow.keras.layers import Dense,InputLayer
@@ -45,20 +44,21 @@ class FCNN:
 
     def __init__(self,data_params,model_params):
 
-        self.data_params=data_params
-        self.model_params=model_params
+        self.data_params = data_params
+        self.model_params = model_params
 
-        self.nfold_cv=self.model_params['nfold_cv']
-        self.model_file=self.model_params['model_file']
-        self.layers=self.model_params['layers']
-        self.activ_funct=self.model_params['activ_funct']
-        self.epochs=self.model_params['epochs']
-        self.optimizer=self.model_params['optimizer']
-        self.use_bias=self.model_params['use_bias']
-        self.loss=self.model_params['loss']
-        self.verbosity=self.model_params['verbosity']
-        self.batch_size=self.model_params['batch_size']
-        self.rmse_cv=self.model_params['rmse_cv']
+        self.nfold_cv = self.model_params['nfold_cv']
+        self.model_file = self.model_params['model_file']
+        self.layers = self.model_params['layers']
+        self.activ_funct = self.model_params['activ_funct']
+        self.epochs = self.model_params['epochs']
+        self.optimizer = self.model_params['optimizer']
+        self.use_bias = self.model_params['use_bias']
+        self.loss = self.model_params['loss']
+        self.verbosity = self.model_params['verbosity']
+
+        self.batch_size = get_key('batch_size', self.model_params, 32)
+        self.rmse_cv = get_key('rmse_cv', self.model_params, False)
 
         # Check parameters
         self.check_params()
@@ -78,22 +78,22 @@ class FCNN:
         """ Import train/test data and parameters to FCNN """
         
         # Data preprocessing
-        data_processor=ProcessData(data_params=self.data_params)
-        self.data_dict=data_processor.load_data()
+        data_processor = ProcessData(data_params=self.data_params)
+        self.data_dict = data_processor.load_data()
         
-        self.id_col=self.data_dict['id_col']
-        self.x_cols=self.data_dict['x_cols']
-        self.y_cols=self.data_dict['y_cols']
-        self.y_org=self.data_dict['y_org']
-        self.sel_cols=self.data_dict['sel_cols']
-        self.y_md_cols=self.data_dict['y_md_cols']
-        self.n_tests=self.data_dict['n_tests']
-        self.train_set=self.data_dict['train_set'].reset_index()
-        self.test_set=self.data_dict['test_set'].reset_index()
-        self.x_dim=len(self.x_cols)
-        self.y_dim=len(self.y_cols)
-        self.x_train=np.array(self.train_set[self.x_cols]).astype(np.float32)
-        self.x_test=np.array(self.test_set[self.x_cols]).astype(np.float32)
+        self.id_col = self.data_dict['id_col']
+        self.x_cols = self.data_dict['x_cols']
+        self.y_cols = self.data_dict['y_cols']
+        self.y_org = self.data_dict['y_org']
+        self.sel_cols = self.data_dict['sel_cols']
+        self.y_md_cols = self.data_dict['y_md_cols']
+        self.n_tests = self.data_dict['n_tests']
+        self.train_set = self.data_dict['train_set'].reset_index()
+        self.test_set = self.data_dict['test_set'].reset_index()
+        self.x_dim = len(self.x_cols)
+        self.y_dim = len(self.y_cols)
+        self.x_train = np.array(self.train_set[self.x_cols]).astype(np.float32)
+        self.x_test = np.array(self.test_set[self.x_cols]).astype(np.float32)
 
         # NN does not have yerr
         self.data_dict['yerr_md_cols']=[] 
@@ -246,20 +246,21 @@ class PrFCNN:
 
     def __init__(self,data_params,model_params):
 
-        self.data_params=data_params
-        self.model_params=model_params
+        self.data_params = data_params
+        self.model_params = model_params
 
-        self.nfold_cv=self.model_params['nfold_cv']
-        self.model_file=self.model_params['model_file']
-        self.layers=self.model_params['layers']
-        self.activ_funct=self.model_params['activ_funct']
-        self.epochs=self.model_params['epochs']
-        self.optimizer=self.model_params['optimizer']
-        self.use_bias=self.model_params['use_bias']
-        self.loss=self.model_params['loss']
-        self.verbosity=self.model_params['verbosity']
-        self.batch_size=self.model_params['batch_size']
-        self.rmse_cv=self.model_params['rmse_cv']
+        self.nfold_cv = self.model_params['nfold_cv']
+        self.model_file = self.model_params['model_file']
+        self.layers = self.model_params['layers']
+        self.activ_funct = self.model_params['activ_funct']
+        self.epochs = self.model_params['epochs']
+        self.optimizer = self.model_params['optimizer']
+        self.use_bias = self.model_params['use_bias']
+        self.loss = self.model_params['loss']
+        self.verbosity = self.model_params['verbosity']
+
+        self.batch_size = get_key('batch_size', self.model_params, 32)
+        self.rmse_cv = get_key('rmse_cv', self.model_params, False)
 
         # Check parameters
         self.check_params()
@@ -297,6 +298,33 @@ class PrFCNN:
         self.y_dim=len(self.y_cols)
         self.x_train=np.array(self.train_set[self.x_cols]).astype(np.float32)
         self.x_test=np.array(self.test_set[self.x_cols]).astype(np.float32)
+
+    def posterior_mean_field(kernel_size, bias_size=0, dtype=None):
+        """ Specify the surrogate posterior over `keras.layers.Dense` `kernel` and `bias` """
+
+        n = kernel_size + bias_size
+        c = np.log(np.expm1(1.))
+
+        return tf.keras.Sequential([
+            tfp.layers.VariableLayer(2 * n, dtype=dtype),
+            tfp.layers.DistributionLambda(lambda t: tfd.Independent(
+                tfd.Normal(loc=t[..., :n],
+                           scale=1e-5 + tf.nn.softplus(c + t[..., n:])),
+                reinterpreted_batch_ndims=1)),
+        ])
+
+    def prior_trainable(kernel_size, bias_size=0, dtype=None):
+        """ Specify the prior over `keras.layers.Dense` `kernel` and `bias` """
+
+        n = kernel_size + bias_size
+
+        return tf.keras.Sequential([
+            tfp.layers.VariableLayer(n, dtype=dtype),
+            tfp.layers.DistributionLambda(lambda t: tfd.Independent(
+                tfd.Normal(loc=t, scale=1),
+                reinterpreted_batch_ndims=1)),
+        ])
+
 
     def build_model(self):
         """ Build a PrFCNN"""
@@ -390,8 +418,8 @@ class PrFCNN:
             rmse_cv_test=np.sqrt(mean_squared_error(np.array(y_cv_test)\
                 .reshape(len(test_cv)*self.y_dim),y_cv_test_md))
 
-            if rmse_cv_test<opt_rmse:
-                opt_rmse=rmse_cv_test
+            if rmse_cv_test < opt_rmse:
+                opt_rmse = rmse_cv_test
                 nn_model.save_weights(self.model_file)
                 ncv_opt=ncv
 
@@ -581,13 +609,15 @@ class GPR:
 
     def __init__(self,data_params,model_params):
 
-        self.data_params=data_params
-        self.model_params=model_params
-        self.nfold_cv=self.model_params['nfold_cv']
-        self.model_file=self.model_params['model_file']
-        self.n_restarts_optimizer=self.model_params['n_restarts_optimizer']
-        self.rmse_cv=self.model_params['rmse_cv']
-        self.optimizer='fmin_l_bfgs_b'
+        self.data_params = data_params
+        self.model_params = model_params
+        self.nfold_cv = self.model_params['nfold_cv']
+        self.model_file = self.model_params['model_file']
+        self.n_restarts_optimizer = self.model_params['n_restarts_optimizer']
+
+        self.rmse_cv = get_key('rmse_cv', self.model_params, False)
+
+        self.optimizer = 'fmin_l_bfgs_b'
 
         # Check parameter
         self.check_params()
@@ -681,11 +711,11 @@ class GPR:
                 warnings.filterwarnings("ignore")
                 gp.fit(x_cv_train,y_cv_train)
 
-            y_cv_train_md=gp.predict(x_cv_train,return_std=False)
-            y_cv_test_md=gp.predict(x_cv_test,return_std=False)
+            y_cv_train_md = gp.predict(x_cv_train,return_std=False)
+            y_cv_test_md = gp.predict(x_cv_test,return_std=False)
 
-            rmse_cv_train=np.sqrt(mean_squared_error(y_cv_train,y_cv_train_md))
-            rmse_cv_test=np.sqrt(mean_squared_error(y_cv_test,y_cv_test_md))
+            rmse_cv_train = np.sqrt(mean_squared_error(y_cv_train,y_cv_train_md))
+            rmse_cv_test = np.sqrt(mean_squared_error(y_cv_test,y_cv_test_md))
             
             if rmse_cv_test < opt_rmse:
             #if np.absolute(rmse_cv_test -rmse_cv_train) < opt_rmse:
@@ -769,7 +799,8 @@ class RFR:
         self.criterion=self.model_params['criterion']
         self.max_depth=self.model_params['max_depth']
         self.get_feature_importances=self.model_params['get_feature_importances'] 
-        self.rmse_cv=self.model_params['rmse_cv']
+
+        self.rmse_cv = get_key('rmse_cv', self.model_params, False)
 
         # Check parameter
         self.check_params()
@@ -955,7 +986,8 @@ class SVecR:
         self.max_iter=self.model_params['max_iter']
         self.nfold_cv=self.model_params['nfold_cv']
         self.model_file=self.model_params['model_file']
-        self.rmse_cv=self.model_params['rmse_cv']
+
+        self.rmse_cv = get_key('rmse_cv', self.model_params, False)
 
         # Check parameter
         self.check_params()

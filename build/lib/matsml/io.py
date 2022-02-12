@@ -11,6 +11,12 @@ def goodbye():
     print ('  matsML job completed')
 
 
+def get_key(key, dic, val):
+    """ get key value from a dic with a default if not found """
+
+    return dic[key] if key in dic else val
+
+
 class AtomicStructure:
     """ Atomic structure related I/O. More to come. """
     def __init__(self):
@@ -28,25 +34,25 @@ class AtomicStructure:
             specs:    list of species
             xyz_df:   dataframe, species and xyz coords
         """
-        xyz=open(str(filename),"r+")  
-        Lines=xyz.readlines()
-        nlines=len(Lines)
-        nat=int(Lines[0].strip('\n').strip('\t').strip(' '))
-        columns=['specs','x','y','z']
-        xyz_df=pd.DataFrame(columns=columns)
-        specs=[]
-        nspecs=0
+        xyz = open(str(filename),"r+")  
+        Lines = xyz.readlines()
+        nlines = len(Lines)
+        nat = int(Lines[0].strip('\n').strip('\t').strip(' '))
+        columns = ['specs','x','y','z']
+        xyz_df = pd.DataFrame(columns=columns)
+        specs = []
+        nspecs = 0
         for i in range(2,nat+2,1):
-            spec=Lines[i].split()[0]
+            spec = Lines[i].split()[0]
             if (not any (sp==spec for sp in specs)):
                 specs.append(spec)
                 nspecs+=1
-            x=Lines[i].split()[1]
-            y=Lines[i].split()[2]
-            z=Lines[i].split()[3]
-            xyz_df.loc[len(xyz_df)]=[spec,x,y,z]
+            x = Lines[i].split()[1]
+            y = Lines[i].split()[2]
+            z = Lines[i].split()[3]
+            xyz_df.loc[len(xyz_df)] = [spec,x,y,z]
         
-        return nat,nspecs,specs,xyz_df
+        return nat, nspecs, specs, xyz_df
 
 def progress_bar(i_loop,loop_length,action):
     """ Progress bar for some slow works """
