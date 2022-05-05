@@ -1,5 +1,9 @@
-ver12feb22
-- enforce some points in training (train_ids), sampling applicable only
+ver18feb22
+- features added
+    - gradient boosting regression (GBR)
+    - y_scaling = logfre, logpos
+    - x_scaling = normalize
+    - enforce some points in training (train_ids), sampling applicable only
 - code optimization
 
 ver01jan22

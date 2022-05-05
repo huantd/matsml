@@ -64,10 +64,7 @@ class ProcessData:
         self.data_params = data_params
 
         # List of ids that must be in training set
-        if 'train_ids' in self.data_params:
-            self.train_ids = self.data_params['train_ids']
-        else:
-            self.train_ids = []
+        self.train_ids = get_key('train_ids', self.data_params, [])
 
         # Default x_scaling and y_scaling is minmax
         self.x_scaling = get_key('x_scaling', self.data_params, 'minmax')
@@ -127,8 +124,9 @@ class ProcessData:
         self.y = data_fp[id_col+sel_cols+y_cols]
         self.x = data_fp[id_col+x_cols]
 
-        self.n_trains = int(self.data_params['n_trains']*self.data_size)
-        self.n_tests = self.data_size-self.n_trains
+        # ser ntrains at 0.8 if this key not presents
+        self.n_trains = int(get_key('n_trains', self.data_params, 1.0) * self.data_size)
+        self.n_tests = self.data_size - self.n_trains
 
         # Print some data parameters
         tpl='{} {}{}{}{}'
@@ -155,7 +153,11 @@ class ProcessData:
             x_scaled = self.xscaler.fit_transform(x.drop(self.id_col,axis=1))
             joblib.dump(self.xscaler,xscaler_file) 
             print ('    xscaler saved in'.ljust(32),xscaler_file)
-
+        if self.x_scaling == 'normalize':
+            self.xscaler = preprocessing.StandardScaler()
+            x_scaled = self.xscaler.fit_transform(x.drop(self.id_col,axis=1))
+            joblib.dump(self.xscaler, xscaler_file) 
+            print ('    xscaler saved in'.ljust(32),xscaler_file)
         elif self.x_scaling == 'none':
             x_scaled = x.drop(self.id_col,axis=1)
         
@@ -197,86 +199,94 @@ class ProcessData:
             for sel in sel_cols:
                 y_sel = y[y[sel]==1]
             
-                this_row=pd.DataFrame([np.mean(np.array(y_sel[col])) for col 
+                this_row = pd.DataFrame([np.mean(np.array(y_sel[col])) for col 
                     in y_cols],columns=y_cols)
-                this_row['sel']=sel
-                y_mean=y_mean.append(this_row,ignore_index=True)
+                this_row['sel'] = sel
+                y_mean = y_mean.append(this_row,ignore_index=True)
             
-                this_row=pd.DataFrame([np.std(np.array(y_sel[col])) for col 
+                this_row = pd.DataFrame([np.std(np.array(y_sel[col])) for col 
                     in y_cols],columns=y_cols)
-                this_row['sel']=sel
-                y_std=y_std.append(this_row,ignore_index=True)
+                this_row['sel'] = sel
+                y_std = y_std.append(this_row,ignore_index=True)
             
-                this_row=pd.DataFrame([np.amin(np.array(y_sel[col])) for col 
+                this_row = pd.DataFrame([np.amin(np.array(y_sel[col])) for col 
                     in y_cols],columns=y_cols)
-                this_row['sel']=sel
-                y_min=y_min.append(this_row,ignore_index=True)
+                this_row['sel'] = sel
+                y_min = y_min.append(this_row,ignore_index=True)
             
-                this_row=pd.DataFrame([np.amax(np.array(y_sel[col])) for col 
+                this_row = pd.DataFrame([np.amax(np.array(y_sel[col])) for col 
                     in y_cols],columns=y_cols)
-                this_row['sel']=sel
-                y_max=y_max.append(this_row,ignore_index=True)
+                this_row['sel'] = sel
+                y_max = y_max.append(this_row,ignore_index=True)
             
             self.y_mean = y_mean
             self.y_std = y_std
             self.y_min = y_min
             self.y_max = y_max
 
-            y_scaled=pd.DataFrame(columns=self.id_col+sel_cols+y_cols)
-            y_scaled[self.id_col]=y[self.id_col] 
-            y_scaled[sel_cols]=y[sel_cols] 
+            y_scaled = pd.DataFrame(columns=self.id_col+sel_cols+y_cols)
+            y_scaled[self.id_col] = y[self.id_col] 
+            y_scaled[sel_cols] = y[sel_cols] 
 
             for i, j, sel in ((a,b,c) for a in range(len(y)) for b in 
                     range(y_dim) for c in sel_cols):
-                this_row=y.iloc[i]
+                this_row = y.iloc[i]
                 if this_row[sel].astype(int)==1:
-                    ymean=float(y_mean.loc[y_mean['sel']==sel][y_cols[j]])
-                    ystd=float(y_std.loc[y_std['sel']==sel][y_cols[j]])
-                    ymin=float(y_min.loc[y_min['sel']==sel][y_cols[j]])
-                    ymax=float(y_max.loc[y_max['sel']==sel][y_cols[j]])
+                    ymean = float(y_mean.loc[y_mean['sel']==sel][y_cols[j]])
+                    ystd = float(y_std.loc[y_std['sel']==sel][y_cols[j]])
+                    ymin = float(y_min.loc[y_min['sel']==sel][y_cols[j]])
+                    ymax = float(y_max.loc[y_max['sel']==sel][y_cols[j]])
                     if str(self.y_scaling)=='normalize':
-                        y_scaled.at[i,y_cols[j]]=(y.at[i,y_cols[j]]-ymean)/\
+                        y_scaled.at[i,y_cols[j]] = (y.at[i,y_cols[j]]-ymean)/\
                             ystd
                     elif str(self.y_scaling)=='minmax':
-                        y_scaled.at[i,y_cols[j]]=(y.at[i,y_cols[j]]-ymin)/\
+                        y_scaled.at[i,y_cols[j]] = (y.at[i,y_cols[j]]-ymin)/\
                             (ymax-ymin)
+                    elif str(self.y_scaling)=='logpos':
+                        y_scaled.at[i,y_cols[j]] = np.log(y.at[i,y_cols[j]])
+                    elif str(self.y_scaling)=='logfre':
+                        y_scaled.at[i,y_cols[j]] = np.log(y.at[i,y_cols[j]]-ymin+1)
                     elif str(self.y_scaling)=='none':
-                        y_scaled.at[i,y_cols[j]]=y.at[i,y_cols[j]]
+                        y_scaled.at[i,y_cols[j]] = y.at[i,y_cols[j]]
 
-            self.y_scaled=y_scaled
+            self.y_scaled = y_scaled
             
         elif len(sel_cols) == 0:
-            self.y_mean=pd.DataFrame([np.mean(np.array(y[col])) for col 
+            self.y_mean = pd.DataFrame([np.mean(np.array(y[col])) for col 
                 in y_cols]).T
-            self.y_mean.columns=y_cols
+            self.y_mean.columns = y_cols
 
-            self.y_std=pd.DataFrame([np.std(np.array(y[col])) for col 
+            self.y_std = pd.DataFrame([np.std(np.array(y[col])) for col 
                 in y_cols]).T
-            self.y_std.columns=y_cols
+            self.y_std.columns = y_cols
 
-            self.y_min=pd.DataFrame([np.amin(np.array(y[col])) for col 
+            self.y_min = pd.DataFrame([np.amin(np.array(y[col])) for col 
                 in y_cols]).T
-            self.y_min.columns=y_cols
+            self.y_min.columns = y_cols
 
-            self.y_max=pd.DataFrame([np.amax(np.array(y[col])) for col 
+            self.y_max = pd.DataFrame([np.amax(np.array(y[col])) for col 
                 in y_cols]).T
-            self.y_max.columns=y_cols
+            self.y_max.columns = y_cols
 
             y_scaled = pd.DataFrame(columns=self.id_col+y_cols)
             for i, j in ((a,b) for a in range(len(y)) for b in range(y_dim)):
                 y_scaled[self.id_col] = y[self.id_col] 
                 if str(self.y_scaling) == 'normalize':
-                    delta_y=y.at[i,y_cols[j]]-self.y_mean.at[0,y_cols[j]]
+                    delta_y = y.at[i,y_cols[j]]-self.y_mean.at[0,y_cols[j]]
                     y_scaled.at[i,y_cols[j]]=delta_y/self.y_std.at[0,y_cols[j]]
                 elif str(self.y_scaling) == 'minmax':
-                    delta_y=(self.y_max.at[0,y_cols[j]]-\
+                    delta_y = (self.y_max.at[0,y_cols[j]]-\
                         self.y_min.at[0,y_cols[j]])
-                    y_scaled.at[i,y_cols[j]]=(y.at[i,y_cols[j]]-\
+                    y_scaled.at[i,y_cols[j]] = (y.at[i,y_cols[j]]-\
                         self.y_min.at[0,y_cols[j]])/delta_y
+                elif str(self.y_scaling) == 'logpos':
+                    y_scaled.at[i,y_cols[j]] = np.log(y.at[i,y_cols[j]])
+                elif str(self.y_scaling) == 'logfre':
+                    y_scaled.at[i,y_cols[j]] = np.log(y.at[i,y_cols[j]]-self.y_min.at[0, y_cols[j]]+1)
                 elif str(self.y_scaling) == 'none':
-                    y_scaled.at[i,y_cols[j]]=y.at[i,y_cols[j]]
+                    y_scaled.at[i,y_cols[j]] = y.at[i,y_cols[j]]
 
-            self.y_scaled=y_scaled
+            self.y_scaled = y_scaled
         
 
     def split_train_test(self):
@@ -300,8 +310,8 @@ class ProcessData:
         train_set_ids = [idx for idx in train_ids]
 
         if self.sampling=='random':
-            for idx in scaled_data_red.sample(n=self.n_trains-len(train_ids))\
-                    [id_col[0]].tolist():
+            for idx in scaled_data_red.sample(n=self.n_trains-len(train_ids), \
+                    random_state = 42)[id_col[0]].tolist():
                 train_set_ids.append(idx)
             test_set_ids = [idx for idx in scaled_data[id_col[0]].tolist() 
                 if idx not in train_set_ids]
@@ -315,7 +325,7 @@ class ProcessData:
             train_set_ids = []
 
             data = np.array(self.x_scaled[self.x_cols])
-            pca = PCA(n_components=2)
+            pca = PCA(n_components = 2)
             x_pca = pca.fit_transform(data)
             
             # Do some statistics on the PCA trasformed data
@@ -345,6 +355,7 @@ class ProcessData:
 
         self.train_set = scaled_data[scaled_data[id_col[0]].isin(train_set_ids)]
         self.test_set = scaled_data[scaled_data[id_col[0]].isin(test_set_ids)]
+        #print ('DEBUG >>>>', train_set_ids)
 
 
     def invert_scale_y(self,y_scaled,data_dict,message):
@@ -352,17 +363,17 @@ class ProcessData:
 
         print ('    unscaling y:', data_dict['y_scaling'])
 
-        id_col=data_dict['id_col']
-        y_cols=data_dict['y_cols']
-        sel_cols=data_dict['sel_cols']
-        y_scaling=data_dict['y_scaling']
-        y_org=data_dict['y_org']
-        y_mean=data_dict['y_mean']
-        y_std=data_dict['y_std']
-        y_min=data_dict['y_min']
-        y_max=data_dict['y_max']
-        y_md_cols=data_dict['y_md_cols']
-        yerr_md_cols=data_dict['yerr_md_cols']
+        id_col = data_dict['id_col']
+        y_cols = data_dict['y_cols']
+        sel_cols = data_dict['sel_cols']
+        y_scaling = data_dict['y_scaling']
+        y_org = data_dict['y_org']
+        y_mean = data_dict['y_mean']
+        y_std = data_dict['y_std']
+        y_min = data_dict['y_min']
+        y_max = data_dict['y_max']
+        y_md_cols = data_dict['y_md_cols']
+        yerr_md_cols = data_dict['yerr_md_cols']
 
         y_org = y_org[id_col+sel_cols+y_cols]
         y_dim = len(y_cols)
@@ -380,21 +391,26 @@ class ProcessData:
 
                 if y_scaled.at[idx1,sel] > 0.0:
                     if str(y_scaling)=='minmax':
-                        ymax=float(y_max.loc[y_max['sel']==\
+                        ymax = float(y_max.loc[y_max['sel']==\
                             sel][y_cols[jy]])
-                        ymin=float(y_min.loc[y_min['sel']==\
+                        ymin = float(y_min.loc[y_min['sel']==\
                             sel][y_cols[jy]])
-                        y_org.at[idx0,y_md_cols[jy]]=y_scaled.at[idx1,
+                        y_org.at[idx0,y_md_cols[jy]] = y_scaled.at[idx1,
                             y_md_cols[jy]]*(ymax-ymin)+ymin
                     elif str(y_scaling)=='normalize':
-                        ymean=float(y_mean.loc[y_max['sel']==\
+                        ymean = float(y_mean.loc[y_max['sel']==\
                             sel][y_cols[jy]])
-                        ystd=float(y_std.loc[y_min['sel']==\
+                        ystd = float(y_std.loc[y_min['sel']==\
                             sel][y_cols[jy]])
-                        y_org.at[idx0,y_md_cols[jy]]=y_scaled.at[idx1,
+                        y_org.at[idx0,y_md_cols[jy]] = y_scaled.at[idx1,
                             y_md_cols[jy]]*ystd +ymean
+                    elif str(y_scaling)=='logpos':
+                        y_org.at[idx0,y_md_cols[jy]] = np.exp(y_scaled.at[idx1, y_md_cols[jy]])
+                    elif str(y_scaling)=='logfre':
+                        ymin = float(y_min.loc[y_min['sel'] == sel][y_cols[jy]])
+                        y_org.at[idx0,y_md_cols[jy]] = np.exp(y_scaled.at[idx1, y_md_cols[jy]]) - 1 + ymin
                     elif str(y_scaling)=='none':
-                        y_org.at[idx0,y_md_cols[jy]]=y_scaled.at[idx1,
+                        y_org.at[idx0,y_md_cols[jy]] = y_scaled.at[idx1,
                             y_md_cols[jy]]
 
             y_unscaled=y_org.dropna(subset=y_md_cols)
@@ -415,7 +431,7 @@ class ProcessData:
                     idn].index)[0]
                 if str(y_scaling) == 'minmax':
                     delta_y=(y_max.at[0,y_cols[jy]]-y_min.at[0,y_cols[jy]])
-                    y_org.at[idx0,y_md_cols[jy]]=y_scaled.at[idx1,
+                    y_org.at[idx0,y_md_cols[jy]] = y_scaled.at[idx1,
                         y_md_cols[jy]]*delta_y+y_min.at[0,y_cols[jy]]
                     if len(yerr_md_cols)>0:
                         y_org.at[idx0,yerr_md_cols[jy]] = y_scaled.at[idx1,
@@ -427,10 +443,16 @@ class ProcessData:
                     if len(yerr_md_cols)>0:
                         y_org.at[idx0,yerr_md_cols[jy]]=y_scaled.at[idx1, 
                             yerr_md_cols[jy]]*y_std.at[0,y_cols[jy]]
+                elif str(y_scaling)=='logpos':
+                    y_org.at[idx0,y_md_cols[jy]] = np.exp(y_scaled.at[idx1, 
+                        y_md_cols[jy]])
+                elif str(y_scaling)=='logfre':
+                    y_org.at[idx0,y_md_cols[jy]] = np.exp(y_scaled.at[idx1, 
+                        y_md_cols[jy]]) -1 + y_min.at[0,y_cols[jy]]
                 elif str(y_scaling)=='none':
                     y_org.at[idx0,y_md_cols[jy]]=y_scaled.at[idx1, 
                         y_md_cols[jy]]
-                    if len(yerr_md_cols)>0:
+                    if len(yerr_md_cols) > 0:
                         y_org.at[idx0,yerr_md_cols[jy]]=y_scaled.at[idx1, 
                             yerr_md_cols[jy]]
 
@@ -458,7 +480,7 @@ class ProcessData:
         # Scale y
         self.scale_y()
 
-        self.scaled_data=pd.concat([self.x_scaled,self.y_scaled[self.y_cols]],
+        self.scaled_data = pd.concat([self.x_scaled,self.y_scaled[self.y_cols]],
             axis=1)
 
         self.y_md_cols=['md_'+col for col in self.y_cols]
@@ -476,7 +498,8 @@ class ProcessData:
             'y_scaling':self.y_scaling, 'y_mean':self.y_mean, 
             'y_std':self.y_std, 'y_max':self.y_max,'y_min':self.y_min,
             'y_org':self.y, 'y_scaled':self.y_scaled, 
-            'y_md_cols':self.y_md_cols, 'yerr_md_cols':self.yerr_md_cols}
+            'y_md_cols':self.y_md_cols, 'yerr_md_cols':self.yerr_md_cols,
+            'data_size':self.data_size}
 
         return data_dict
 

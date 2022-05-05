@@ -6,6 +6,7 @@ setup.py
 matsml/__init__.py
 matsml/data.py
 matsml/fingerprint.py
+matsml/fp_optimization.py
 matsml/init.py
 matsml/io.py
 matsml/models.py

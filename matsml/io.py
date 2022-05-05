@@ -16,7 +16,6 @@ def get_key(key, dic, val):
 
     return dic[key] if key in dic else val
 
-
 class AtomicStructure:
     """ Atomic structure related I/O. More to come. """
     def __init__(self):
@@ -68,7 +67,7 @@ def progress_bar(i_loop,loop_length,action):
     elif action=='finish':
         sys.stdout.write('\n')
 
-def plot_det_preds(y_cols,y_md_cols,n_tests,pdf_output):
+def plot_det_preds(y_cols, y_md_cols, n_tests, log_scaling, pdf_output):
     """ 
     Plot results of the models trained and saved in training.csv and 
         test.csv.
@@ -102,8 +101,12 @@ def plot_det_preds(y_cols,y_md_cols,n_tests,pdf_output):
             lmin=min(train_df[y_col].min(),train_df[y_md_col].min())
             lmax=max(train_df[y_col].max(),train_df[y_md_col].max())
 
-        plt.xlim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
-        plt.ylim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
+        if log_scaling:
+            plt.xscale('log')
+            plt.yscale('log')
+        else:
+            plt.xlim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
+            plt.ylim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
 
         rmse_train=np.sqrt(np.mean((train_df[y_col]-train_df[y_md_col])**2))
         r2_train=r2_score(train_df[y_col],train_df[y_md_col])
@@ -121,13 +124,13 @@ def plot_det_preds(y_cols,y_md_cols,n_tests,pdf_output):
             label=r'training, (rmse & $R^2$) = (%.3f & %.3f)'\
             %(rmse_train,r2_train))
 
-        print ('    training, (rmse & R2) = (%.3f & %.3f)' %(rmse_train,r2_train))
+        print ('    training, (rmse & R2) = ( %.3f & %.3f )' %(rmse_train,r2_train))
         if n_tests > 0:
             plt.scatter(test_df[y_col],test_df[y_md_col],color='tab:blue',
                 marker='o',alpha=0.6,
                 label=r'test, (rmse & $R^2$) = (%.3f & %.3f)'\
                 %(rmse_test,r2_test))
-            print ('    test, (rmse & R2) = (%.3f & %.3f)' %(rmse_test,r2_test))
+            print ('    test, (rmse & R2) = ( %.3f & %.3f )' %(rmse_test,r2_test))
         plt.legend(loc="lower right",fontsize = 11)
 
         if pdf_output:
@@ -208,12 +211,12 @@ def plot_prob_preds(y_cols,y_md_cols,yerr_md_cols,n_tests,pdf_output):
         plt.xlabel("Reference value", size=12)
         plt.errorbar(train_df[y_col],train_df[y_md_col],yerr=\
             train_df[yerr_md_col],color='tab:red',fmt='s',alpha=0.95,
-            label=r'training, (rmse & $R^2$) = (%.3f & %.3f)'\
+            label=r'training, (rmse & $R^2$) = ( %.3f & %.3f )'\
             %(rmse_train,r2_train))
         if n_tests > 0:
             plt.errorbar(test_df[y_col],test_df[y_md_col],yerr=\
                 test_df[yerr_md_col],color='tab:blue',fmt='o',alpha=0.6,
-                label=r'test, (rmse & $R^2$) = (%.3f & %.3f)'\
+                label=r'test, (rmse & $R^2$) = ( %.3f & %.3f )'\
                 %(rmse_test,r2_test))
         plt.legend(loc="lower right",fontsize = 11)
         if pdf_output:

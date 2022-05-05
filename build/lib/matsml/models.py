@@ -28,10 +28,11 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import WhiteKernel,RBF
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 
 class FCNN:
     """ 
@@ -85,6 +86,7 @@ class FCNN:
         self.x_cols = self.data_dict['x_cols']
         self.y_cols = self.data_dict['y_cols']
         self.y_org = self.data_dict['y_org']
+        self.y_scaling = self.data_dict['y_scaling']
         self.sel_cols = self.data_dict['sel_cols']
         self.y_md_cols = self.data_dict['y_md_cols']
         self.n_tests = self.data_dict['n_tests']
@@ -231,7 +233,12 @@ class FCNN:
     def plot(self,pdf_output):
         """ Plot the train and test predictions"""
 
-        plot_det_preds(self.y_cols,self.y_md_cols,self.n_tests,pdf_output)
+        if self.y_scaling == 'logpos' or self.y_scaling == 'logfre':
+            log_scaling = True
+        else:
+            log_scaling = False
+
+        plot_det_preds(self.y_cols, self.y_md_cols, self.n_tests, log_scaling, pdf_output)
 
 
 class PrFCNN:
@@ -281,50 +288,24 @@ class PrFCNN:
         """ Import train/test data and parameters to FCNN """
         
         # Data preprocessing
-        data_processor=ProcessData(data_params=self.data_params)
-        self.data_dict=data_processor.load_data()
+        data_processor = ProcessData(data_params = self.data_params)
+        self.data_dict = data_processor.load_data()
         
-        self.id_col=self.data_dict['id_col']
-        self.x_cols=self.data_dict['x_cols']
-        self.y_cols=self.data_dict['y_cols']
-        self.y_org=self.data_dict['y_org']
-        self.sel_cols=self.data_dict['sel_cols']
-        self.y_md_cols=self.data_dict['y_md_cols']
-        self.yerr_md_cols=self.data_dict['yerr_md_cols']
-        self.n_tests=self.data_dict['n_tests']
-        self.train_set=self.data_dict['train_set'].reset_index()
-        self.test_set=self.data_dict['test_set'].reset_index()
-        self.x_dim=len(self.x_cols)
-        self.y_dim=len(self.y_cols)
-        self.x_train=np.array(self.train_set[self.x_cols]).astype(np.float32)
-        self.x_test=np.array(self.test_set[self.x_cols]).astype(np.float32)
-
-    def posterior_mean_field(kernel_size, bias_size=0, dtype=None):
-        """ Specify the surrogate posterior over `keras.layers.Dense` `kernel` and `bias` """
-
-        n = kernel_size + bias_size
-        c = np.log(np.expm1(1.))
-
-        return tf.keras.Sequential([
-            tfp.layers.VariableLayer(2 * n, dtype=dtype),
-            tfp.layers.DistributionLambda(lambda t: tfd.Independent(
-                tfd.Normal(loc=t[..., :n],
-                           scale=1e-5 + tf.nn.softplus(c + t[..., n:])),
-                reinterpreted_batch_ndims=1)),
-        ])
-
-    def prior_trainable(kernel_size, bias_size=0, dtype=None):
-        """ Specify the prior over `keras.layers.Dense` `kernel` and `bias` """
-
-        n = kernel_size + bias_size
-
-        return tf.keras.Sequential([
-            tfp.layers.VariableLayer(n, dtype=dtype),
-            tfp.layers.DistributionLambda(lambda t: tfd.Independent(
-                tfd.Normal(loc=t, scale=1),
-                reinterpreted_batch_ndims=1)),
-        ])
-
+        self.id_col = self.data_dict['id_col']
+        self.x_cols = self.data_dict['x_cols']
+        self.y_cols = self.data_dict['y_cols']
+        self.y_org = self.data_dict['y_org']
+        self.y_scaling = self.data_dict['y_scaling']
+        self.sel_cols = self.data_dict['sel_cols']
+        self.y_md_cols = self.data_dict['y_md_cols']
+        self.yerr_md_cols = self.data_dict['yerr_md_cols']
+        self.n_tests = self.data_dict['n_tests']
+        self.train_set = self.data_dict['train_set'].reset_index()
+        self.test_set = self.data_dict['test_set'].reset_index()
+        self.x_dim = len(self.x_cols)
+        self.y_dim = len(self.y_cols)
+        self.x_train = np.array(self.train_set[self.x_cols]).astype(np.float32)
+        self.x_test = np.array(self.test_set[self.x_cols]).astype(np.float32)
 
     def build_model(self):
         """ Build a PrFCNN"""
@@ -385,56 +366,56 @@ class PrFCNN:
         """ Train, test, and save the PrFCNN"""
 
         self.load_data()
-        data_processor=ProcessData(data_params=self.data_params)
+        data_processor = ProcessData(data_params=self.data_params)
 
-        tpl1=\
+        tpl1 = \
             "    cv,rmse_train,rmse_test,rmse_opt: {0:d} {1:.6f} {2:.6f} {3:.6f}"
 
-        nn_model=self.build_model()
+        nn_model = self.build_model()
 
         #kfold splitting
-        kf_=KFold(n_splits=self.nfold_cv,shuffle=True)
-        kf=kf_.split(self.train_set)
+        kf_ = KFold(n_splits=self.nfold_cv,shuffle=True)
+        kf = kf_.split(self.train_set)
 
-        opt_rmse=1.0E20
-        ncv=0
-        ncv_opt=ncv
+        opt_rmse = 1.0E20
+        ncv = 0
+        ncv_opt = ncv
         
         print ('  Training PrFCNN w/ cross validation')
 
         for train_cv,test_cv in kf:
-            x_cv_train,x_cv_test,y_cv_train,y_cv_test=data_processor\
+            x_cv_train,x_cv_test,y_cv_train,y_cv_test = data_processor\
                 .get_cv_datasets(self.train_set,self.x_cols,self.y_cols,
                 train_cv,test_cv)
 
-            nn_model.fit(x_cv_train,y_cv_train,epochs=self.epochs,
+            nn_model.fit(x_cv_train,y_cv_train,epochs = self.epochs,
                 batch_size=int(self.batch_size),verbose=int(self.verbosity))
 
-            y_cv_train_md=nn_model.predict(x_cv_train).flatten()
-            y_cv_test_md=nn_model.predict(x_cv_test).flatten()
+            y_cv_train_md = nn_model.predict(x_cv_train).flatten()
+            y_cv_test_md = nn_model.predict(x_cv_test).flatten()
 
-            rmse_cv_train=np.sqrt(mean_squared_error(np.array(y_cv_train)\
+            rmse_cv_train = np.sqrt(mean_squared_error(np.array(y_cv_train)\
                 .reshape(len(train_cv)*self.y_dim),y_cv_train_md))
-            rmse_cv_test=np.sqrt(mean_squared_error(np.array(y_cv_test)\
+            rmse_cv_test = np.sqrt(mean_squared_error(np.array(y_cv_test)\
                 .reshape(len(test_cv)*self.y_dim),y_cv_test_md))
 
             if rmse_cv_test < opt_rmse:
                 opt_rmse = rmse_cv_test
                 nn_model.save_weights(self.model_file)
-                ncv_opt=ncv
+                ncv_opt = ncv
 
             print (tpl1.format(ncv,rmse_cv_train,rmse_cv_test,opt_rmse))
             ncv=ncv+1
 
             if self.rmse_cv:
-                y_cv_test_md=nn_model.predict(x_cv_test)
-                pred_cv_test=pd.concat([self.train_set.iloc[test_cv]\
+                y_cv_test_md = nn_model.predict(x_cv_test)
+                pred_cv_test = pd.concat([self.train_set.iloc[test_cv]\
                     [self.id_col+self.sel_cols+self.y_cols]\
                     .reset_index(),pd.DataFrame(y_cv_test_md,
                     columns=self.y_md_cols)],axis=1,ignore_index=True)
-                pred_cv_test.columns=['index']+self.id_col+\
+                pred_cv_test.columns = ['index']+self.id_col+\
                     self.sel_cols+self.y_cols+self.y_md_cols
-                unscaled_cv_test=data_processor.invert_scale_y(pred_cv_test,
+                unscaled_cv_test = data_processor.invert_scale_y(pred_cv_test,
                     self.data_dict,'cv_test')
 
         print('    Optimal ncv: ',ncv_opt)
@@ -444,8 +425,8 @@ class PrFCNN:
         print ('  PrFCNN trained, now make predictions & invert scaling')
 
         # Make predictions on the training and test datasets
-        y_train_md=np.array(nn_model(self.x_train).mean())
-        yerr_train_md=np.array(nn_model(self.x_train).stddev())
+        y_train_md = np.array(nn_model(self.x_train).mean())
+        yerr_train_md = np.array(nn_model(self.x_train).stddev())
 
         pred_train_set=pd.concat([self.train_set[self.id_col+
             self.sel_cols+self.y_cols],pd.DataFrame(y_train_md,
@@ -539,6 +520,7 @@ class KRR:
         self.x_cols=self.data_dict['x_cols']
         self.y_cols=self.data_dict['y_cols']
         self.y_org=self.data_dict['y_org']
+        self.y_scaling = self.data_dict['y_scaling']
         self.sel_cols=self.data_dict['sel_cols']
         self.y_md_cols=self.data_dict['y_md_cols']
         self.n_tests=self.data_dict['n_tests']
@@ -594,7 +576,12 @@ class KRR:
     def plot(self,pdf_output):
         """ Plot the train and test predictions"""
 
-        plot_det_preds(self.y_cols,self.y_md_cols,self.n_tests,pdf_output)
+        if self.y_scaling == 'logpos' or self.y_scaling == 'logfre':
+            log_scaling = True
+        else:
+            log_scaling = False
+
+        plot_det_preds(self.y_cols, self.y_md_cols, self.n_tests, log_scaling, pdf_output)
 
 
 class GPR:
@@ -613,10 +600,9 @@ class GPR:
         self.model_params = model_params
         self.nfold_cv = self.model_params['nfold_cv']
         self.model_file = self.model_params['model_file']
-        self.n_restarts_optimizer = self.model_params['n_restarts_optimizer']
 
         self.rmse_cv = get_key('rmse_cv', self.model_params, False)
-
+        self.n_restarts_optimizer = get_key('n_restarts_optimizer', self.model_params, 0)
         self.optimizer = 'fmin_l_bfgs_b'
 
         # Check parameter
@@ -635,25 +621,26 @@ class GPR:
         """ Import train/test data and parameters to RFR """
         
         # Data preprocessing
-        data_processor=ProcessData(data_params=self.data_params)
-        self.data_dict=data_processor.load_data()
+        data_processor = ProcessData(data_params = self.data_params)
+        self.data_dict = data_processor.load_data()
         
-        self.id_col=self.data_dict['id_col']
-        self.x_cols=self.data_dict['x_cols']
-        self.y_cols=self.data_dict['y_cols']
-        self.y_org=self.data_dict['y_org']
-        self.x_scaled=self.data_dict['x_scaled']
-        self.y_scaled=self.data_dict['y_scaled']
-        self.sel_cols=self.data_dict['sel_cols']
-        self.y_md_cols=self.data_dict['y_md_cols']
-        self.n_tests=self.data_dict['n_tests']
-        self.train_set=self.data_dict['train_set'].reset_index()
-        self.test_set=self.data_dict['test_set'].reset_index()
-        self.x_dim=len(self.x_cols)
-        self.y_dim=len(self.y_cols)
-        self.x_train=np.array(self.train_set[self.x_cols]).astype(np.float32)
-        self.y_train=np.array(self.train_set[self.y_cols]).astype(np.float32)
-        self.x_test=np.array(self.test_set[self.x_cols]).astype(np.float32)
+        self.id_col = self.data_dict['id_col']
+        self.x_cols = self.data_dict['x_cols']
+        self.y_cols = self.data_dict['y_cols']
+        self.y_org = self.data_dict['y_org']
+        self.y_scaling = self.data_dict['y_scaling']
+        self.x_scaled = self.data_dict['x_scaled']
+        self.y_scaled = self.data_dict['y_scaled']
+        self.sel_cols = self.data_dict['sel_cols']
+        self.y_md_cols = self.data_dict['y_md_cols']
+        self.n_tests = self.data_dict['n_tests']
+        self.train_set = self.data_dict['train_set'].reset_index()
+        self.test_set = self.data_dict['test_set'].reset_index()
+        self.x_dim = len(self.x_cols)
+        self.y_dim = len(self.y_cols)
+        self.x_train = np.array(self.train_set[self.x_cols]).astype(np.float32)
+        self.y_train = np.array(self.train_set[self.y_cols]).astype(np.float32)
+        self.x_test = np.array(self.test_set[self.x_cols]).astype(np.float32)
 
         # GPR should have yerr, but not now
         self.data_dict['yerr_md_cols']=[] 
@@ -674,17 +661,17 @@ class GPR:
     def train(self):
 
         self.load_data()
-        data_processor=ProcessData(data_params=self.data_params)
+        data_processor = ProcessData(data_params = self.data_params)
 
-        y_avr=np.average(np.array(self.y_scaled[self.y_cols]))
-        noise_avr=np.std(np.array(self.y_scaled[self.y_cols]))
-        noise_lb=(noise_avr)**2/200
-        noise_ub=(noise_avr)**2*20
+        y_avr = np.average(np.array(self.y_scaled[self.y_cols]))
+        noise_avr = np.std(np.array(self.y_scaled[self.y_cols]))
+        noise_lb = (noise_avr)**2/200
+        noise_ub = (noise_avr)**2*20
 
-        kernel=(y_avr)**2*RBF(length_scale=1)+WhiteKernel(noise_level=\
+        kernel = (y_avr)**2*RBF(length_scale=1)+WhiteKernel(noise_level=\
             noise_avr**2,noise_level_bounds=(noise_lb,noise_ub))
 
-        gp=GaussianProcessRegressor(kernel=kernel,alpha=1e-10,optimizer=\
+        gp = GaussianProcessRegressor(kernel=kernel,alpha=1e-10,optimizer=\
             self.optimizer,n_restarts_optimizer=self.n_restarts_optimizer)
 
         opt_gp=gp
@@ -693,8 +680,8 @@ class GPR:
         ncv_opt=ncv
 
         #kfold splitting
-        kf_=KFold(n_splits=self.nfold_cv,shuffle=True)
-        kf=kf_.split(self.train_set)
+        kf_ = KFold(n_splits = self.nfold_cv, shuffle=True)
+        kf = kf_.split(self.train_set)
 
         tpl1=\
             "    cv,rmse_train,rmse_test,rmse_opt: {0:d} {1:.6f} {2:.6f} {3:.6f}"
@@ -778,29 +765,36 @@ class GPR:
         """ 
         Plot the train and test predictions
         """
+        if self.y_scaling == 'logpos' or self.y_scaling == 'logfre':
+            log_scaling = True
+        else:
+            log_scaling = False
 
-        plot_det_preds(self.y_cols,self.y_md_cols,self.n_tests,pdf_output)
+        plot_det_preds(self.y_cols, self.y_md_cols, self.n_tests, log_scaling, pdf_output)
 
 
 class RFR:
     """ 
-    RFR: Random Forest Regression with scikit-learn
+        RFR: Random Forest Regression with scikit-learn
 
     """
 
+
     def __init__(self,data_params,model_params):
 
-        self.data_params=data_params
-        self.model_params=model_params
-        self.nfold_cv=self.model_params['nfold_cv']
-        self.model_file=self.model_params['model_file']
-        self.n_estimators=self.model_params['n_estimators']
-        self.random_state=self.model_params['random_state']
-        self.criterion=self.model_params['criterion']
-        self.max_depth=self.model_params['max_depth']
-        self.get_feature_importances=self.model_params['get_feature_importances'] 
+        self.data_params = data_params
+        self.model_params = model_params
+
+        self.nfold_cv = self.model_params['nfold_cv']
+        self.n_estimators = self.model_params['n_estimators']
+        self.criterion = self.model_params['criterion']
+        self.max_depth = self.model_params['max_depth']
+        self.get_feature_importances = self.model_params['get_feature_importances'] 
 
         self.rmse_cv = get_key('rmse_cv', self.model_params, False)
+        self.warm_start = get_key('warm_start', self.model_params, True)
+        self.model_file = get_key('model_file', self.model_params, 'model.pkl')
+        self.random_state = get_key('random_state', self.model_params, 42)
 
         # Check parameter
         self.check_params()
@@ -827,6 +821,7 @@ class RFR:
         self.x_cols=self.data_dict['x_cols']
         self.y_cols=self.data_dict['y_cols']
         self.y_org=self.data_dict['y_org']
+        self.y_scaling = self.data_dict['y_scaling']
         self.x_scaled=self.data_dict['x_scaled']
         self.y_scaled=self.data_dict['y_scaled']
         self.sel_cols=self.data_dict['sel_cols']
@@ -861,9 +856,9 @@ class RFR:
         self.load_data()
         data_processor=ProcessData(data_params=self.data_params)
 
-        rf = RandomForestRegressor(n_estimators=self.n_estimators,\
-            random_state=self.random_state,criterion=self.criterion,\
-            max_depth=self.max_depth)
+        rf = RandomForestRegressor(n_estimators = self.n_estimators,\
+            random_state = self.random_state, criterion = self.criterion,\
+            max_depth = self.max_depth,warm_start = self.warm_start)
 
         opt_rf = rf
         opt_rmse = 1.0E20
@@ -871,8 +866,8 @@ class RFR:
         ncv_opt = ncv
 
         #kfold splitting
-        kf_=KFold(n_splits=self.nfold_cv,shuffle=True)
-        kf=kf_.split(self.train_set)
+        kf_ = KFold(n_splits = self.nfold_cv, shuffle = True)
+        kf = kf_.split(self.train_set)
 
         tpl1=\
             "    cv,rmse_train,rmse_test,rmse_opt: {0:d} {1:.6f} {2:.6f} {3:.6f}"
@@ -929,13 +924,25 @@ class RFR:
             importances = list(rf_final.feature_importances_)
 
             # List of tuples with variable and importance
-            feature_importances = [(feature, round(importance, 3)) for feature, importance in zip(self.x_cols, importances)]
+            feature_importances = [(feature, round(importance, 3)) for \
+                    feature, importance in zip(self.x_cols, importances)]
 
             # Sort the feature importances by most important first
-            feature_importances = sorted(feature_importances, key = lambda x: x[1], reverse = True)
+            feature_importances = sorted(feature_importances, key = \
+                    lambda x: x[1], reverse = True)
 
             # Print out the feature and importances
-            [print('    {:50} importance: {}'.format(*pair)) for pair in feature_importances[:10]];
+            [print('    {:50} importance: {}'.format(*pair)) for pair in \
+                    feature_importances[:10]];
+
+            #feature_importances_pd = pd.DataFrame(feature_importances, \
+            #        columns = ['feature','importance'])
+
+            #feature_importances_cum = np.cumsum(np.array(feature_importances_pd['importance']))
+            #idx_up = [ n for n,i in enumerate(feature_importances_cum) if i > 0.95 ][0]
+            #sel_features = feature_importances_pd.iloc[range(idx_up)]
+            #print (list(sel_features['feature']))
+
 
         print ('  Now make predictions & invert scaling')
 
@@ -950,7 +957,7 @@ class RFR:
         unscaled_train_set.to_csv('training.csv',index=False)
 
         if self.n_tests > 0:
-            y_test_md=rf_final.predict(self.x_test)
+            y_test_md = rf_final.predict(self.x_test)
             pred_test_set=pd.concat([self.test_set[self.id_col+
                 self.sel_cols+self.y_cols],pd.DataFrame(y_test_md,
                 columns=self.y_md_cols)],axis=1,ignore_index=True)
@@ -967,8 +974,13 @@ class RFR:
         """ 
         Plot the train and test predictions
         """
+        if self.y_scaling == 'logpos' or self.y_scaling == 'logfre':
+            log_scaling = True
+        else:
+            log_scaling = False
 
-        plot_det_preds(self.y_cols,self.y_md_cols,self.n_tests,pdf_output)
+
+        plot_det_preds(self.y_cols, self.y_md_cols, self.n_tests, log_scaling, pdf_output)
 
 
 class SVecR:
@@ -1012,6 +1024,7 @@ class SVecR:
         self.x_cols=self.data_dict['x_cols']
         self.y_cols=self.data_dict['y_cols']
         self.y_org=self.data_dict['y_org']
+        self.y_scaling = self.data_dict['y_scaling']
         self.x_scaled=self.data_dict['x_scaled']
         self.y_scaled=self.data_dict['y_scaled']
         self.sel_cols=self.data_dict['sel_cols']
@@ -1136,7 +1149,225 @@ class SVecR:
         """ 
         Plot the train and test predictions
         """
+        if self.y_scaling == 'logpos' or self.y_scaling == 'logfre':
+            log_scaling = True
+        else:
+            log_scaling = False
 
-        plot_det_preds(self.y_cols,self.y_md_cols,self.n_tests,pdf_output)
 
+        plot_det_preds(self.y_cols, self.y_md_cols, self.n_tests, log_scaling, pdf_output)
+
+
+class GBR:
+    """ 
+        BGR: Gradient Boosting Regressor with scikit-learn
+
+    """
+
+
+    def __init__(self,data_params,model_params):
+
+        self.data_params = data_params
+        self.model_params = model_params
+
+        self.nfold_cv = self.model_params['nfold_cv']
+        self.rmse_cv = get_key('rmse_cv', self.model_params, False)
+        self.model_file = get_key('model_file', self.model_params, 'model.pkl')
+        self.random_state = get_key('random_state', self.model_params, 42)
+        self.loss = get_key('loss', self.model_params, 'squared_error')
+
+        self.n_estimators = get_key('n_estimators', self.model_params, 1000)
+        self.criterion = get_key('criterion', self.model_params, 'friedman_mse')
+        self.get_feature_importances = self.model_params['get_feature_importances'] 
+
+        # Check parameter
+        self.check_params()
+
+        # Echo main parameters
+        print (' ')
+        print ('  Learning fingerprinted/featured data')
+        print ('    algorithm'.ljust(32),'gradient boosting regression w/ scikit-learn')
+        print ('    loss'.ljust(32), self.loss)
+        print ('    criterion'.ljust(32), self.criterion)
+        print ('    n_estimators'.ljust(32), self.n_estimators)
+        print ('    get_feature_importances'.ljust(32), self.get_feature_importances)
+        print ('    nfold_cv'.ljust(32),self.nfold_cv)
+        print ('    random_state'.ljust(32),self.random_state)
+
+    def load_data(self):
+        """ Import train/test data and parameters to RFR """
+        
+        # Data preprocessing
+        data_processor = ProcessData(data_params=self.data_params)
+        self.data_dict = data_processor.load_data()
+        
+        self.id_col = self.data_dict['id_col']
+        self.x_cols = self.data_dict['x_cols']
+        self.y_cols = self.data_dict['y_cols']
+        self.y_org = self.data_dict['y_org']
+        self.y_scaling = self.data_dict['y_scaling']
+        self.x_scaled = self.data_dict['x_scaled']
+        self.y_scaled = self.data_dict['y_scaled']
+        self.sel_cols = self.data_dict['sel_cols']
+        self.y_md_cols = self.data_dict['y_md_cols']
+        self.n_tests = self.data_dict['n_tests']
+        self.n_trains = self.data_dict['n_trains']
+        self.train_set = self.data_dict['train_set'].reset_index()
+        self.test_set = self.data_dict['test_set'].reset_index()
+        self.x_dim = len(self.x_cols)
+        self.y_dim = len(self.y_cols)
+        self.x_train = np.array(self.train_set[self.x_cols]).astype(np.float32)
+        self.y_train = np.array(self.train_set[self.y_cols]).astype(np.float32)
+        self.x_test = np.array(self.test_set[self.x_cols]).astype(np.float32)
+
+        # too large n_estimators (compared with n_trains) is not good, so we need
+        # some adjustment here
+        if self.n_estimators > int(0.27 * self.n_trains):
+            self.n_estimators = int(0.27 * self.n_trains)
+
+        # GBR does not yerr
+        self.data_dict['yerr_md_cols'] = [] 
+
+    def check_params(self):
+        """ 
+        Make sure the parameters are valid 
+        """
+
+        print ('  ')
+        print ('  Checking parameters')
+        if len(self.data_params['y_cols'])>1: 
+            raise ValueError \
+                  ('      ERROR: No more than 1 targets with RFR')
+        else:
+            print ('    all passed'.ljust(32), 'True')
+
+    def train(self):
+
+        self.load_data()
+        data_processor = ProcessData(data_params = self.data_params)
+
+        gbr = GradientBoostingRegressor(random_state = self.random_state,
+                loss = self.loss, n_estimators = self.n_estimators,
+                criterion = self.criterion)
+
+        opt_gbr = gbr
+        opt_rmse = 1.0E20
+        ncv = 0
+        ncv_opt = ncv
+
+        #kfold splitting
+        kf_ = KFold(n_splits = self.nfold_cv, shuffle = True)
+        kf = kf_.split(self.train_set)
+
+        tpl1=\
+            "    cv,rmse_train,rmse_test,rmse_opt: {0:d} {1:.6f} {2:.6f} {3:.6f}"
+
+        print ('  Training model w/ cross validation')
+        for train_cv, test_cv in kf:
+
+            x_cv_train, x_cv_test, y_cv_train, y_cv_test = data_processor\
+                .get_cv_datasets(self.train_set, self.x_cols, self.y_cols,
+                train_cv, test_cv)
+
+            # run block of code and catch warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore")
+                gbr.fit(x_cv_train,y_cv_train)
+
+            y_cv_train_md = gbr.predict(x_cv_train)
+            y_cv_test_md = gbr.predict(x_cv_test)
+
+            rmse_cv_train = np.sqrt(mean_squared_error(y_cv_train,\
+                y_cv_train_md))
+            rmse_cv_test = np.sqrt(mean_squared_error(y_cv_test,\
+                y_cv_test_md))
+            
+            if rmse_cv_test < opt_rmse:
+                opt_rmse = rmse_cv_test
+                ncv_opt = ncv
+                # Save this model
+                model_file = os.path.join(os.getcwd(), self.model_file)
+                joblib.dump(gbr, model_file)
+
+            print (tpl1.format(ncv,rmse_cv_train,rmse_cv_test,opt_rmse))
+            ncv = ncv+1
+
+            if self.rmse_cv:
+                y_cv_test_md=gbr.predict(x_cv_test)
+                pred_cv_test=pd.concat([self.train_set.iloc[test_cv]\
+                    [self.id_col+self.sel_cols+self.y_cols]\
+                    .reset_index(),pd.DataFrame(y_cv_test_md,
+                    columns=self.y_md_cols)],axis=1)
+                pred_cv_test.columns=['index']+self.id_col+\
+                    self.sel_cols+self.y_cols+self.y_md_cols
+                unscaled_cv_test=data_processor.invert_scale_y(pred_cv_test,
+                    self.data_dict,'cv_test')
+
+        print ('  GBR model trained and saved in "%s"' %os.path.basename(model_file))
+
+        # load the optimal model 
+        gbr_final=joblib.load(model_file)
+
+        print ('  Top 10 features by importance')
+        if self.get_feature_importances:
+            # Get numerical feature importances
+            importances = list(gbr_final.feature_importances_)
+
+            # List of tuples with variable and importance
+            feature_importances = [(feature, round(importance, 3)) for \
+                    feature, importance in zip(self.x_cols, importances)]
+
+            # Sort the feature importances by most important first
+            feature_importances = sorted(feature_importances, key = \
+                    lambda x: x[1], reverse = True)
+
+            # Print out the feature and importances
+            [print('    {:50} importance: {}'.format(*pair)) for pair in \
+                    feature_importances[:10]];
+
+            #feature_importances_pd = pd.DataFrame(feature_importances, \
+            #        columns = ['feature','importance'])
+
+            #feature_importances_cum = np.cumsum(np.array(feature_importances_pd['importance']))
+            #idx_up = [ n for n,i in enumerate(feature_importances_cum) if i > 0.95 ][0]
+            #sel_features = feature_importances_pd.iloc[range(idx_up)]
+            #print (list(sel_features['feature']))
+
+        print ('  Now make predictions & invert scaling')
+
+        y_train_md = gbr_final.predict(self.x_train)
+        pred_train_set = pd.concat([self.train_set[self.id_col+
+            self.sel_cols+self.y_cols],pd.DataFrame(y_train_md,
+            columns=self.y_md_cols)],axis=1,ignore_index=True)
+        pred_train_set.columns = self.id_col+self.sel_cols+self.y_cols+\
+            self.y_md_cols
+        unscaled_train_set = data_processor.invert_scale_y(pred_train_set,
+            self.data_dict,'training')
+        unscaled_train_set.to_csv('training.csv',index=False)
+
+        if self.n_tests > 0:
+            y_test_md = gbr_final.predict(self.x_test)
+            pred_test_set=pd.concat([self.test_set[self.id_col+
+                self.sel_cols+self.y_cols],pd.DataFrame(y_test_md,
+                columns=self.y_md_cols)],axis=1,ignore_index=True)
+            pred_test_set.columns=self.id_col+self.sel_cols+self.y_cols+\
+                self.y_md_cols
+            unscaled_test_set=data_processor.invert_scale_y(pred_test_set,
+                self.data_dict,'test')
+            unscaled_test_set.to_csv('test.csv',index=False)
+            print ('  Predictions made & saved in "training.csv" & "test.csv"')
+        else:
+            print ('  Predictions made & saved in "training.csv"')
+
+    def plot(self,pdf_output):
+        """ 
+        Plot the train and test predictions
+        """
+
+        if self.y_scaling == 'logpos' or self.y_scaling == 'logfre':
+            log_scaling = True
+        else:
+            log_scaling = False
+
+        plot_det_preds(self.y_cols, self.y_md_cols, self.n_tests, log_scaling, pdf_output)
 
