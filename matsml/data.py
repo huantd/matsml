@@ -73,10 +73,13 @@ class ProcessData:
         # Default x_scaling and y_scaling is random
         self.sampling = get_key('sampling', self.data_params, 'random')
 
+        # If we want to save the train/test spliting
+        self.save_split = get_key('save_split', self.data_params, True)
+
     def read_data(self):
         print ('  Read data')
 
-        self.data_file=self.data_params['data_file']
+        self.data_file = self.data_params['data_file']
 
         # ID column 
         id_col = self.data_params['id_col']
@@ -123,6 +126,8 @@ class ProcessData:
         # x and y data for learning
         self.y = data_fp[id_col+sel_cols+y_cols]
         self.x = data_fp[id_col+x_cols]
+        # fill nan by 0 in fingerprint
+        self.x = self.x.fillna(0)
 
         # ser ntrains at 0.8 if this key not presents
         self.n_trains = int(get_key('n_trains', self.data_params, 1.0) * self.data_size)
@@ -355,8 +360,13 @@ class ProcessData:
 
         self.train_set = scaled_data[scaled_data[id_col[0]].isin(train_set_ids)]
         self.test_set = scaled_data[scaled_data[id_col[0]].isin(test_set_ids)]
-        #print ('DEBUG >>>>', train_set_ids)
 
+        # Save train/test split
+        if self.save_split:
+            train_set_tmp = self.unscaled_data[self.unscaled_data[id_col[0]].isin(train_set_ids)]
+            test_set_tmp = self.unscaled_data[self.unscaled_data[id_col[0]].isin(test_set_ids)]
+            train_set_tmp.to_csv('train_data.csv', index = False)
+            test_set_tmp.to_csv('test_data.csv', index = False)
 
     def invert_scale_y(self,y_scaled,data_dict,message):
         """ Unscale the y data """
@@ -480,8 +490,8 @@ class ProcessData:
         # Scale y
         self.scale_y()
 
-        self.scaled_data = pd.concat([self.x_scaled,self.y_scaled[self.y_cols]],
-            axis=1)
+        self.scaled_data = pd.concat([self.x_scaled,self.y_scaled[self.y_cols]],axis=1)
+        self.unscaled_data = pd.concat([self.x, self.y[self.y_cols]], axis=1)
 
         self.y_md_cols=['md_'+col for col in self.y_cols]
         self.yerr_md_cols=[col+'_err' for col in self.y_md_cols] 
