@@ -2,6 +2,4 @@
 class GreetingMessage:
 
     def __init__(self):
-        print ('matsml, a toolkit for machine learning in materials science')
-
-
+        print('matsml, a toolkit for machine learning in materials science')
