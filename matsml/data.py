@@ -127,8 +127,9 @@ class ProcessData:
         self.sel_vals = sel_vals
 
         # x and y data for learning
-        self.y = data_fp[id_col+sel_cols+y_cols]
-        self.x = data_fp[id_col+x_cols]
+        self.y = data_fp[id_col + sel_cols + y_cols]
+        self.x = data_fp[id_col + x_cols]
+
         # fill nan by 0 in fingerprint
         self.x = self.x.fillna(0)
 
@@ -173,7 +174,7 @@ class ProcessData:
             x_scaled = x.drop(self.id_col, axis=1)
 
         # Convert nparray back pandas and stack the ID column
-        x_scaled_df = pd.DataFrame(x_scaled, columns=self.x_cols)
+        x_scaled_df = pd.DataFrame(x_scaled, columns = self.x_cols)
         x_scaled_df[self.id_col] = x[self.id_col]
         self.x_scaled = x_scaled_df
 
@@ -213,22 +214,22 @@ class ProcessData:
                 this_row = pd.DataFrame([np.mean(np.array(y_sel[col])) for col
                                          in y_cols], columns=y_cols)
                 this_row['sel'] = sel
-                y_mean = y_mean.append(this_row, ignore_index=True)
+                y_mean = pd.concat([y_mean,this_row], axis = 0)
 
                 this_row = pd.DataFrame([np.std(np.array(y_sel[col])) for col
                                          in y_cols], columns=y_cols)
                 this_row['sel'] = sel
-                y_std = y_std.append(this_row, ignore_index=True)
+                y_std = pd.concat([y_std, this_row], axis = 0)
 
                 this_row = pd.DataFrame([np.amin(np.array(y_sel[col])) for col
                                          in y_cols], columns=y_cols)
                 this_row['sel'] = sel
-                y_min = y_min.append(this_row, ignore_index=True)
+                y_min = pd.concat([y_min, this_row], axis = 0)
 
                 this_row = pd.DataFrame([np.amax(np.array(y_sel[col])) for col
                                          in y_cols], columns=y_cols)
                 this_row['sel'] = sel
-                y_max = y_max.append(this_row, ignore_index=True)
+                y_max = pd.concat([y_max, this_row], axis = 0)
 
             self.y_mean = y_mean
             self.y_std = y_std

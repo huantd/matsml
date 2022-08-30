@@ -220,8 +220,7 @@ class FCNN:
             pred_test_set = pd.concat([self.test_set[self.id_col +
                                                      self.sel_cols+self.y_cols], pd.DataFrame(y_test_md,
                                                                                               columns=self.y_md_cols)], axis=1, ignore_index=True)
-            pred_test_set.columns = self.id_col+self.sel_cols +\
-                self.y_cols+self.y_md_cols
+            pred_test_set.columns = self.id_col+self.sel_cols + self.y_cols+self.y_md_cols
             unscaled_test_set = data_processor.invert_scale_y(pred_test_set,
                                                               self.data_dict, 'test')
             unscaled_test_set.to_csv('test.csv', index=False)
@@ -332,8 +331,8 @@ class PrFCNN:
                                                    (loc=t[..., :1], scale=1e-1+tf.math.softplus(0.1*t[..., 1:]))))
 
         # Compile
-        nn_model.compile(loss=negloglik, optimizer=tf.optimizers
-                         .Adam(learning_rate=0.01))
+        nn_model.compile(
+            loss=negloglik, optimizer=tf.optimizers.Adam(learning_rate=0.01))
 
         # Model summary
         if int(self.verbosity) > 0:
@@ -409,8 +408,8 @@ class PrFCNN:
                                           [self.id_col+self.sel_cols+self.y_cols]
                                           .reset_index(), pd.DataFrame(y_cv_test_md,
                                                                        columns=self.y_md_cols)], axis=1, ignore_index=True)
-                pred_cv_test.columns = ['index']+self.id_col +\
-                    self.sel_cols+self.y_cols+self.y_md_cols
+                pred_cv_test.columns = [
+                    'index'] + self.id_col + self.sel_cols+self.y_cols+self.y_md_cols
                 unscaled_cv_test = data_processor.invert_scale_y(pred_cv_test,
                                                                  self.data_dict, 'cv_test')
 
@@ -428,8 +427,8 @@ class PrFCNN:
                                                    self.sel_cols+self.y_cols], pd.DataFrame(y_train_md,
                                                                                             columns=self.y_md_cols), pd.DataFrame(yerr_train_md,
                                                                                                                                   columns=self.yerr_md_cols)], axis=1, ignore_index=True)
-        pred_train_set.columns = self.id_col+self.sel_cols+self.y_cols +\
-            self.y_md_cols+self.yerr_md_cols
+        pred_train_set.columns = self.id_col+self.sel_cols + \
+            self.y_cols + self.y_md_cols+self.yerr_md_cols
         unscaled_train_set = data_processor.invert_scale_y(pred_train_set,
                                                            self.data_dict, 'training')
         unscaled_train_set.to_csv('training.csv', index=False)
@@ -442,8 +441,8 @@ class PrFCNN:
                                                      self.sel_cols+self.y_cols], pd.DataFrame(y_test_md,
                                                                                               columns=self.y_md_cols), pd.DataFrame(yerr_test_md,
                                                                                                                                     columns=self.yerr_md_cols)], axis=1, ignore_index=True)
-            pred_test_set.columns = self.id_col+self.sel_cols +\
-                self.y_cols+self.y_md_cols+self.yerr_md_cols
+            pred_test_set.columns = self.id_col + self.sel_cols + \
+                self.y_cols + self.y_md_cols + self.yerr_md_cols
             unscaled_test_set = data_processor.invert_scale_y(pred_test_set,
                                                               self.data_dict, 'test')
             unscaled_test_set.to_csv('test.csv', index=False)
