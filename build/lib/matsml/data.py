@@ -252,8 +252,10 @@ class ProcessData:
                         y_scaled.at[i, y_cols[j]] = (y.at[i, y_cols[j]]-ymean) /\
                             ystd
                     elif str(self.y_scaling) == 'minmax':
-                        y_scaled.at[i, y_cols[j]] = (y.at[i, y_cols[j]]-ymin) /\
-                            (ymax-ymin)
+                        if ymax == ymin:
+                            y_scaled.at[i, y_cols[j]] = 0
+                        elif ymax > ymin:
+                            y_scaled.at[i, y_cols[j]] = (y.at[i, y_cols[j]]-ymin)/(ymax-ymin)
                     elif str(self.y_scaling) == 'logpos':
                         y_scaled.at[i, y_cols[j]] = np.log(y.at[i, y_cols[j]])
                     elif str(self.y_scaling) == 'logfre':
