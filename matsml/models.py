@@ -658,12 +658,7 @@ class GPR:
 
         y_avr = np.average(np.array(self.y_scaled[self.y_cols]))
         noise_avr = np.std(np.array(self.y_scaled[self.y_cols]))
-        noise_lb = (noise_avr)**2/200
-        noise_ub = (noise_avr)**2*20
-
-        kernel = (y_avr)**2*RBF(length_scale=1)+WhiteKernel(noise_level=noise_avr **
-                                                            2, noise_level_bounds=(noise_lb, noise_ub))
-
+        kernel = y_avr*RBF(length_scale=1) + WhiteKernel(noise_level=noise_avr, noise_level_bounds=(noise_avr/20, noise_avr*20))
         gp = GaussianProcessRegressor(
             kernel=kernel, alpha=1e-10, optimizer=self.optimizer, n_restarts_optimizer=self.n_restarts_optimizer)
 
@@ -673,7 +668,7 @@ class GPR:
         ncv_opt = ncv
 
         # kfold splitting
-        kf_ = KFold(n_splits=self.nfold_cv, shuffle=True)
+        kf_ = KFold(n_splits = self.nfold_cv, shuffle = True)
         kf = kf_.split(self.train_set)
 
         tpl1 =\
@@ -699,9 +694,7 @@ class GPR:
             rmse_cv_test = np.sqrt(mean_squared_error(y_cv_test, y_cv_test_md))
 
             if rmse_cv_test < opt_rmse:
-                # if np.absolute(rmse_cv_test -rmse_cv_train) < opt_rmse:
                 opt_rmse = rmse_cv_test
-                #opt_rmse = np.absolute(rmse_cv_test -rmse_cv_train)
                 opt_gp = gp
                 ncv_opt = ncv
 
