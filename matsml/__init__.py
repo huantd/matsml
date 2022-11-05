@@ -1,2 +1,2 @@
-print('  matsML, v1.1.0')
+print('  matsML, v1.2.0')
 print('  *****')

@@ -28,13 +28,13 @@ from tensorflow.keras.optimizers import Nadam
 import tensorflow_probability as tfp
 from sklearn.model_selection import GridSearchCV
 from sklearn.kernel_ridge import KernelRidge
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import WhiteKernel, RBF
 from sklearn.svm import SVR
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.metrics import mean_squared_error
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import WhiteKernel, RBF, DotProduct, Matern
 
 
 class FCNN:
@@ -588,12 +588,16 @@ class GPR:
 
     def __init__(self, data_params, model_params):
 
+
         self.data_params = data_params
         self.model_params = model_params
         self.nfold_cv = self.model_params['nfold_cv']
         self.model_file = self.model_params['model_file']
 
         self.rmse_cv = get_key('rmse_cv', self.model_params, False)
+        self.kernel = get_key('kernel', self.model_params, "RBF")
+        self.noise_lb = get_key('noise_lb', self.model_params, 0.1)
+        self.noise_ub = get_key('noise_ub', self.model_params, 10)
         self.n_restarts_optimizer = get_key(
             'n_restarts_optimizer', self.model_params, 0)
         self.optimizer = 'fmin_l_bfgs_b'
@@ -606,9 +610,12 @@ class GPR:
         print('  Learning fingerprinted/featured data')
         print('    algorithm'.ljust(32),
               'gaussian process regression w/ scikit-learn')
+        print('    kernel'.ljust(32), self.kernel)
         print('    nfold_cv'.ljust(32), self.nfold_cv)
         print('    optimizer'.ljust(32), self.optimizer)
         print('    n_restarts_optimizer'.ljust(32), self.n_restarts_optimizer)
+        print('    noise_lb'.ljust(32), self.noise_lb)
+        print('    noise_ub'.ljust(32), self.noise_ub)
         print('    rmse_cv'.ljust(32), self.rmse_cv)
 
     def load_data(self):
@@ -658,9 +665,23 @@ class GPR:
 
         y_avr = np.average(np.array(self.y_scaled[self.y_cols]))
         noise_avr = np.std(np.array(self.y_scaled[self.y_cols]))
-        kernel = y_avr*RBF(length_scale=1) + WhiteKernel(noise_level=noise_avr, noise_level_bounds=(noise_avr/20, noise_avr*20))
+        noise_lb = noise_avr * self.noise_lb
+        noise_ub = noise_avr * self.noise_ub
+
+        if self.kernel == "RBF":
+            kernel = y_avr**2*RBF(length_scale=1) + WhiteKernel(noise_level = noise_avr,
+                                                            noise_level_bounds = (noise_lb, noise_ub))
+
+        elif self.kernel == "DotProduct":
+            kernel = y_avr**2*DotProduct() + WhiteKernel(noise_level = noise_avr,
+                                                            noise_level_bounds = (noise_lb, noise_ub))
+
+        elif self.kernel == "Matern":
+            kernel = y_avr**2*Matern(length_scale=1) + WhiteKernel(noise_level = noise_avr,
+                                                            noise_level_bounds = (noise_lb, noise_ub))
+
         gp = GaussianProcessRegressor(
-            kernel=kernel, alpha=1e-10, optimizer=self.optimizer, n_restarts_optimizer=self.n_restarts_optimizer)
+            kernel = kernel, alpha=1e-10, optimizer = self.optimizer, n_restarts_optimizer = self.n_restarts_optimizer)
 
         opt_gp = gp
         opt_rmse = 1.0E20
@@ -694,7 +715,9 @@ class GPR:
             rmse_cv_test = np.sqrt(mean_squared_error(y_cv_test, y_cv_test_md))
 
             if rmse_cv_test < opt_rmse:
+            #if np.absolute(rmse_cv_test -rmse_cv_train) * np.absolute(rmse_cv_test + rmse_cv_train) < opt_rmse:
                 opt_rmse = rmse_cv_test
+                #opt_rmse = np.absolute(rmse_cv_test -rmse_cv_train) * np.absolute(rmse_cv_test + rmse_cv_train)
                 opt_gp = gp
                 ncv_opt = ncv
 
@@ -1315,15 +1338,15 @@ class GBR:
 
             # Print out the feature and importances
             [print('    {:50} importance: {}'.format(*pair)) for pair in
-             feature_importances[:10]]
+             feature_importances[:50]]
 
-            # feature_importances_pd = pd.DataFrame(feature_importances, \
-            #        columns = ['feature','importance'])
+            feature_importances_pd = pd.DataFrame(feature_importances, \
+                    columns = ['feature','importance'])
 
-            #feature_importances_cum = np.cumsum(np.array(feature_importances_pd['importance']))
-            #idx_up = [ n for n,i in enumerate(feature_importances_cum) if i > 0.95 ][0]
-            #sel_features = feature_importances_pd.iloc[range(idx_up)]
-            #print (list(sel_features['feature']))
+            feature_importances_cum = np.cumsum(np.array(feature_importances_pd['importance']))
+            idx_up = [ n for n,i in enumerate(feature_importances_cum) if i > 0.95 ][0]
+            sel_features = feature_importances_pd.iloc[range(idx_up)]
+            print (list(sel_features['feature']))
 
         print('  Now make predictions & invert scaling')
 
