@@ -28,8 +28,9 @@ class Datasets:
         self.kwargs = kwargs
 
         git_data = 'https://github.com/huantd/matsml/blob/main/matsml/data_files/'
-
         sum_url = path.join(git_data, 'datasets.csv.gz')
+
+        print (">>>", sum_url)
         self.datasets = pd.read_csv(io.StringIO(requests.get(sum_url).content.
                                                 decode('utf-8')))
 
