@@ -20,44 +20,41 @@ from os import path
 
 class Datasets:
     """ 
-    Retrieve some datasets made available at www.matsml.org
+    Retrieve some datasets
     """
 
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
         self.kwargs = kwargs
+        
+        gtid = 'af91149f2a4114f8f55cb001ad5c5e2d57794dd7'
+        self.git_data = 'https://raw.githubusercontent.com/huantd/matsml/' \
+                + gtid + '/matsml/data_files/'
 
-        #git_data = 'https://github.com/huantd/matsml/blob/main/matsml/data_files/'
-        git_data = 'https://raw.githubusercontent.com/huantd/matsml/main/matsml/data_files/'
-        sum_url = path.join(git_data, 'datasets.csv.gz')
+        sum_url = path.join(self.git_data,'datasets.csv.gz')
+        self.datasets = pd.read_csv(io.BytesIO(requests.get(sum_url).content),\
+                sep=",", compression="gzip", index_col=0, quotechar='"')
 
-        print (">>>", sum_url)
-        self.datasets = pd.read_csv(io.StringIO(requests.get(sum_url).content.
-                                                decode('utf-8')))
-
-        self.data_dir = path.join(path.dirname(__file__), 'data_files')
-        sum_file = path.join(self.data_dir,'datasets.csv')
-        self.datasets = pd.read_csv(sum_file)
 
     def summary(self):
         """ Show what datasets available """
 
         print(' Available datasets')
-        print(self.datasets[['id', 'name']].to_string(index=False))
+        print(self.datasets[['id', 'dataname']].to_string(index=False))
 
-    def load_dataset_depreciated(self):
-        """ Load datasets from matsml.org by name """
+    def load_dataset(self):
+        """ Load datasets from github by name """
 
         print('  Load requested dataset(s)')
         for dataset_name in self.kwargs.values():
             sel_row = self.datasets[self.datasets['dataname'] == dataset_name]
 
             if len(sel_row) > 0:
-                data_url = path.join(git_data,np.array(sel_row['filename']).astype(str)[0])
+                data_url = path.join(self.git_data,np.array(sel_row['filename']).astype(str)[0])
                 fname = data_url.split('/')[-1]
                 os.system('wget -O '+fname+' --no-check-certificate '+data_url)
                 if fname.startswith('fp_'):
-                    print('  Data saved in '+fname)
+                    print('  Data saved in ' + fname)
                 else:
                     os.system('tar -xf '+fname)
                     print('  Data saved in '+dataset_name)
