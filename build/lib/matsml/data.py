@@ -27,7 +27,8 @@ class Datasets:
         self.__dict__.update(**kwargs)
         self.kwargs = kwargs
 
-        git_data = 'https://github.com/huantd/matsml/blob/main/matsml/data_files/'
+        #git_data = 'https://github.com/huantd/matsml/blob/main/matsml/data_files/'
+        git_data = 'https://raw.githubusercontent.com/huantd/matsml/main/matsml/data_files/'
         sum_url = path.join(git_data, 'datasets.csv.gz')
 
         print (">>>", sum_url)
