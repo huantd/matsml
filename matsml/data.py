@@ -15,7 +15,6 @@ import requests
 import heapq
 import random
 from sklearn.metrics import mean_squared_error
-from os import path
 
 
 class Datasets:
@@ -31,7 +30,7 @@ class Datasets:
         self.git_data = 'https://raw.githubusercontent.com/huantd/matsml/' \
                 + gtid + '/matsml/data_files/'
 
-        sum_url = path.join(self.git_data,'datasets.csv.gz')
+        sum_url = os.path.join(self.git_data,'datasets.csv.gz')
         self.datasets = pd.read_csv(io.BytesIO(requests.get(sum_url).content),\
                 sep=",", compression="gzip", index_col=0, quotechar='"')
 
@@ -50,9 +49,9 @@ class Datasets:
             sel_row = self.datasets[self.datasets['dataname'] == dataset_name]
 
             if len(sel_row) > 0:
-                data_url = path.join(self.git_data,np.array(sel_row['filename']).astype(str)[0])
+                data_url = os.path.join(self.git_data,np.array(sel_row['filename']).astype(str)[0])
                 fname = data_url.split('/')[-1]
-                os.system('wget -O '+fname+' --no-check-certificate '+data_url)
+                os.system('wget -O ' + fname + ' --no-check-certificate ' + data_url)
                 if fname.startswith('fp_'):
                     print('  Data saved in ' + fname)
                 else:
