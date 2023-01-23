@@ -15,6 +15,7 @@ import requests
 import heapq
 import random
 from sklearn.metrics import mean_squared_error
+from os import path
 
 
 class Datasets:
@@ -26,9 +27,14 @@ class Datasets:
         self.__dict__.update(**kwargs)
         self.kwargs = kwargs
 
-        sum_url = 'http://www.matsml.org/data/datasets.csv'
-        self.datasets = pd.read_csv(io.StringIO(requests.get(sum_url).content.
-                                                decode('utf-8')))
+        # Depreciated
+        #sum_url = 'http://www.matsml.org/data/datasets.csv'
+        #self.datasets = pd.read_csv(io.StringIO(requests.get(sum_url).content.
+        #                                        decode('utf-8')))
+
+        self.data_dir = path.join(path.dirname(__file__), 'data_files')
+        sum_file = path.join(self.data_dir,'datasets.csv')
+        self.datasets = pd.read_csv(sum_file)
 
     def summary(self):
         """ Show what datasets available """
@@ -37,6 +43,26 @@ class Datasets:
         print(self.datasets[['id', 'name']].to_string(index=False))
 
     def load_dataset(self):
+        """ Load datasets from matsml.org by name """
+
+        print('  Load requested dataset(s)')
+        for dataset_name in self.kwargs.values():
+            sel_row = self.datasets[self.datasets['name'] == dataset_name]
+
+            if len(sel_row) > 0:
+                file_name = np.array(sel_row['fname']).astype(str)[0]
+                file_loc = path.join(self.data_dir, file_name)
+                os.system('cp ' + file_loc + '.')
+                if fname.startswith('fp_'):
+                    print('  Data saved in '+fname)
+                else:
+                    os.system('tar -xf '+fname)
+                    print('  Data saved in '+dataset_name)
+            else:
+                raise ValueError('  ERROR: dataset '+str(dataset_name) +
+                                 ' not found.')
+
+    def load_dataset_depreciated(self):
         """ Load datasets from matsml.org by name """
 
         print('  Load requested dataset(s)')

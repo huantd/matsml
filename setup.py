@@ -1,13 +1,13 @@
 import setuptools
 import os
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, find_namespace_packages
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="matsml",
-    version="1.0.1",
+    version="1.3.0",
     author="Huan Tran",
     author_email="huantd@gmail.com",
     description="A toolkit for easy machine learning in materials science",
@@ -22,6 +22,7 @@ setuptools.setup(
     packages=find_packages(),
     package=['matsml'],
     package_dir={'matsml': 'matsml'},
+    include_package_data=True,
     python_requires=">=3.6",
     setup_requires=["numpy","tensorflow","wheel","sklearn","pandas","keras","tensorflow_probability"]
 )

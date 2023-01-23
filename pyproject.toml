@@ -10,3 +10,9 @@ requires = [
     "tensorflow_probability"
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# By default, include-package-data is true in pyproject.toml, so you do
+# NOT have to specify this line.
+
+include-package-data = true

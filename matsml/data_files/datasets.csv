@@ -1,0 +1,14 @@
+id,name,fname
+1,molecs_CH4,molecs_CH4.tgz
+2,crystals_MgSi,crystals_MgSi.tgz
+3,fp_crystals_MgSi_soap,fp_crystals_MgSi_soap.csv.gz
+4,fp_crystals_MgSi_pesm,fp_crystals_MgSi_pesm.csv.gz
+5,fp_molecs_CH4_soap,fp_molecs_CH4_soap.csv.gz
+6,fp_molecs_CH4_pcm,fp_molecs_CH4_pcm.csv.gz
+7,fp_hoips_S1_1dest,fp_hoips_S1_1dest.csv.gz
+8,fp_hoips_S2a_2dest,fp_hoips_S2a_2dest.csv.gz
+9,fp_hoips_S2b_1dest,fp_hoips_S2b_1dest.csv.gz
+10,fp_hoips_S3_4tfp,fp_hoips_S3_4tfp.csv.gz
+11,molecs_CH3NHOH,molecs_CH3NHOH.tgz
+12,fp_molecs_CH3NHOH_soap,fp_molecs_CH3NHOH_soap.csv.gz
+13,fp_molecs_CH3NHOH_pcm,fp_molecs_CH3NHOH_pcm.csv.gz
