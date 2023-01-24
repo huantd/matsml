@@ -7,14 +7,10 @@
 
 import numpy as np
 import pandas as pd
-from sklearn import preprocessing
 from matsml.io import get_key, goodbye
-import io
-import os
-import requests
-import heapq
-import random
+from sklearn import preprocessing
 from sklearn.metrics import mean_squared_error
+import io, os, requests, random
 
 
 class Datasets:
