@@ -5,8 +5,6 @@ Summary: A toolkit for easy machine learning in materials science
 Home-page: https://github.com/huantd/matsml.git
 Author: Huan Tran
 Author-email: huantd@gmail.com
-License: UNKNOWN
-Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: GNU
 Classifier: Operating System :: OS Independent
@@ -27,5 +25,3 @@ Packages needed for matsml
  - ase (https://wiki.fysik.dtu.dk/ase/)
  - dscribe (https://singroup.github.io/dscribe/latest/index.html)
  - matplotlib (https://matplotlib.org/)
-
-
