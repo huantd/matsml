@@ -588,7 +588,6 @@ class GPR:
 
     def __init__(self, data_params, model_params):
 
-
         self.data_params = data_params
         self.model_params = model_params
         self.nfold_cv = self.model_params['nfold_cv']
@@ -669,19 +668,19 @@ class GPR:
         noise_ub = noise_avr * self.noise_ub
 
         if self.kernel == "RBF":
-            kernel = y_avr**2*RBF(length_scale=1) + WhiteKernel(noise_level = noise_avr,
-                                                            noise_level_bounds = (noise_lb, noise_ub))
+            kernel = y_avr**2*RBF(length_scale=1) + WhiteKernel(noise_level=noise_avr,
+                                                                noise_level_bounds=(noise_lb, noise_ub))
 
         elif self.kernel == "DotProduct":
-            kernel = y_avr**2*DotProduct() + WhiteKernel(noise_level = noise_avr,
-                                                            noise_level_bounds = (noise_lb, noise_ub))
+            kernel = y_avr**2*DotProduct() + WhiteKernel(noise_level=noise_avr,
+                                                         noise_level_bounds=(noise_lb, noise_ub))
 
         elif self.kernel == "Matern":
-            kernel = y_avr**2*Matern(length_scale=1) + WhiteKernel(noise_level = noise_avr,
-                                                            noise_level_bounds = (noise_lb, noise_ub))
+            kernel = y_avr**2*Matern(length_scale=1) + WhiteKernel(noise_level=noise_avr,
+                                                                   noise_level_bounds=(noise_lb, noise_ub))
 
         gp = GaussianProcessRegressor(
-            kernel = kernel, alpha=1e-10, optimizer = self.optimizer, n_restarts_optimizer = self.n_restarts_optimizer)
+            kernel=kernel, alpha=1e-10, optimizer=self.optimizer, n_restarts_optimizer=self.n_restarts_optimizer)
 
         opt_gp = gp
         opt_rmse = 1.0E20
@@ -689,7 +688,7 @@ class GPR:
         ncv_opt = ncv
 
         # kfold splitting
-        kf_ = KFold(n_splits = self.nfold_cv, shuffle = True)
+        kf_ = KFold(n_splits=self.nfold_cv, shuffle=True)
         kf = kf_.split(self.train_set)
 
         tpl1 =\
@@ -715,9 +714,9 @@ class GPR:
             rmse_cv_test = np.sqrt(mean_squared_error(y_cv_test, y_cv_test_md))
 
             if rmse_cv_test < opt_rmse:
-            #if np.absolute(rmse_cv_test -rmse_cv_train) * np.absolute(rmse_cv_test + rmse_cv_train) < opt_rmse:
+                # if np.absolute(rmse_cv_test -rmse_cv_train) * np.absolute(rmse_cv_test + rmse_cv_train) < opt_rmse:
                 opt_rmse = rmse_cv_test
-                #opt_rmse = np.absolute(rmse_cv_test -rmse_cv_train) * np.absolute(rmse_cv_test + rmse_cv_train)
+                # opt_rmse = np.absolute(rmse_cv_test -rmse_cv_train) * np.absolute(rmse_cv_test + rmse_cv_train)
                 opt_gp = gp
                 ncv_opt = ncv
 
@@ -950,10 +949,10 @@ class RFR:
             # feature_importances_pd = pd.DataFrame(feature_importances, \
             #        columns = ['feature','importance'])
 
-            #feature_importances_cum = np.cumsum(np.array(feature_importances_pd['importance']))
-            #idx_up = [ n for n,i in enumerate(feature_importances_cum) if i > 0.95 ][0]
-            #sel_features = feature_importances_pd.iloc[range(idx_up)]
-            #print (list(sel_features['feature']))
+            # feature_importances_cum = np.cumsum(np.array(feature_importances_pd['importance']))
+            # idx_up = [ n for n,i in enumerate(feature_importances_cum) if i > 0.95 ][0]
+            # sel_features = feature_importances_pd.iloc[range(idx_up)]
+            # print (list(sel_features['feature']))
 
         print('  Now make predictions & invert scaling')
 
@@ -1340,13 +1339,15 @@ class GBR:
             [print('    {:50} importance: {}'.format(*pair)) for pair in
              feature_importances[:50]]
 
-            feature_importances_pd = pd.DataFrame(feature_importances, \
-                    columns = ['feature','importance'])
+            feature_importances_pd = pd.DataFrame(feature_importances,
+                                                  columns=['feature', 'importance'])
 
-            feature_importances_cum = np.cumsum(np.array(feature_importances_pd['importance']))
-            idx_up = [ n for n,i in enumerate(feature_importances_cum) if i > 0.95 ][0]
+            feature_importances_cum = np.cumsum(
+                np.array(feature_importances_pd['importance']))
+            idx_up = [n for n, i in enumerate(
+                feature_importances_cum) if i > 0.95][0]
             sel_features = feature_importances_pd.iloc[range(idx_up)]
-            print (list(sel_features['feature']))
+            print(list(sel_features['feature']))
 
         print('  Now make predictions & invert scaling')
 

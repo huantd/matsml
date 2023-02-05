@@ -7,14 +7,13 @@
 
 import numpy as np
 import pandas as pd
-from sklearn import preprocessing
 from matsml.io import get_key, goodbye
+from sklearn import preprocessing
+from sklearn.metrics import mean_squared_error
 import io
 import os
 import requests
-import heapq
 import random
-from sklearn.metrics import mean_squared_error
 
 
 class Datasets:
@@ -25,15 +24,14 @@ class Datasets:
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
         self.kwargs = kwargs
-        
+
         gtid = 'af91149f2a4114f8f55cb001ad5c5e2d57794dd7'
         self.git_data = 'https://raw.githubusercontent.com/huantd/matsml/' \
-                + gtid + '/matsml/data_files/'
+            + gtid + '/matsml/data_files/'
 
-        sum_url = os.path.join(self.git_data,'datasets.csv.gz')
-        self.datasets = pd.read_csv(io.BytesIO(requests.get(sum_url).content),\
-                sep=",", compression="gzip", index_col=0, quotechar='"')
-
+        sum_url = os.path.join(self.git_data, 'datasets.csv.gz')
+        self.datasets = pd.read_csv(io.BytesIO(requests.get(sum_url).content),
+                                    sep=",", compression="gzip", index_col=0, quotechar='"')
 
     def summary(self):
         """ Show what datasets available """
@@ -49,9 +47,11 @@ class Datasets:
             sel_row = self.datasets[self.datasets['dataname'] == dataset_name]
 
             if len(sel_row) > 0:
-                data_url = os.path.join(self.git_data,np.array(sel_row['filename']).astype(str)[0])
+                data_url = os.path.join(self.git_data, np.array(
+                    sel_row['filename']).astype(str)[0])
                 fname = data_url.split('/')[-1]
-                os.system('wget -O ' + fname + ' --no-check-certificate ' + data_url)
+                os.system('wget -O ' + fname +
+                          ' --no-check-certificate ' + data_url)
                 if fname.startswith('fp_'):
                     print('  Data saved in ' + fname)
                 else:
@@ -179,7 +179,7 @@ class ProcessData:
             x_scaled = x.drop(self.id_col, axis=1)
 
         # Convert nparray back pandas and stack the ID column
-        x_scaled_df = pd.DataFrame(x_scaled, columns = self.x_cols)
+        x_scaled_df = pd.DataFrame(x_scaled, columns=self.x_cols)
         x_scaled_df[self.id_col] = x[self.id_col]
         self.x_scaled = x_scaled_df
 
@@ -219,22 +219,22 @@ class ProcessData:
                 this_row = pd.DataFrame([np.mean(np.array(y_sel[col])) for col
                                          in y_cols], columns=y_cols)
                 this_row['sel'] = sel
-                y_mean = pd.concat([y_mean,this_row], axis = 0)
+                y_mean = pd.concat([y_mean, this_row], axis=0)
 
                 this_row = pd.DataFrame([np.std(np.array(y_sel[col])) for col
                                          in y_cols], columns=y_cols)
                 this_row['sel'] = sel
-                y_std = pd.concat([y_std, this_row], axis = 0)
+                y_std = pd.concat([y_std, this_row], axis=0)
 
                 this_row = pd.DataFrame([np.amin(np.array(y_sel[col])) for col
                                          in y_cols], columns=y_cols)
                 this_row['sel'] = sel
-                y_min = pd.concat([y_min, this_row], axis = 0)
+                y_min = pd.concat([y_min, this_row], axis=0)
 
                 this_row = pd.DataFrame([np.amax(np.array(y_sel[col])) for col
                                          in y_cols], columns=y_cols)
                 this_row['sel'] = sel
-                y_max = pd.concat([y_max, this_row], axis = 0)
+                y_max = pd.concat([y_max, this_row], axis=0)
 
             self.y_mean = y_mean
             self.y_std = y_std
@@ -260,7 +260,8 @@ class ProcessData:
                         if ymax == ymin:
                             y_scaled.at[i, y_cols[j]] = 0
                         elif ymax > ymin:
-                            y_scaled.at[i, y_cols[j]] = (y.at[i, y_cols[j]]-ymin)/(ymax-ymin)
+                            y_scaled.at[i, y_cols[j]] = (
+                                y.at[i, y_cols[j]]-ymin)/(ymax-ymin)
                     elif str(self.y_scaling) == 'logpos':
                         y_scaled.at[i, y_cols[j]] = np.log(y.at[i, y_cols[j]])
                     elif str(self.y_scaling) == 'logfre':

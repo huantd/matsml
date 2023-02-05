@@ -10,14 +10,12 @@
 
 import numpy as np
 import pandas as pd
-
-
 from matsml.data import ProcessData
 from matsml.io import AtomicStructure
 from matsml.io import goodbye, progress_bar, get_struct_params
 import os
-import math
 import sys
+import math
 
 
 class Fingerprint:

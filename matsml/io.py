@@ -3,6 +3,7 @@
 import atexit
 import pandas as pd
 import numpy as np
+import ast
 
 
 @atexit.register
@@ -55,6 +56,99 @@ class AtomicStructure:
             xyz_df.loc[len(xyz_df)] = [spec, x, y, z]
 
         return nat, nspecs, specs, xyz_df
+
+    def save_poscar(self, struct_dic, filename):
+        """ 
+        Functionality
+            Save the atomic structure passed to a poscar-format file
+
+        Input
+            struct_dic: a dictionary containing "a", "b", "c", "alpha", "beta", "gamma", "nat", 
+                        "ntypat", "species", "coordinates", "ref"
+
+            "a", "b", "c":              real, lattice parameters
+            "alpha", "beta", "gamma":   real, lattice angles
+            "nat":                      integer, number of atoms
+            "ntypat":                   integer, number of atom types (species)
+            "species":                  list of nat names of nat atoms
+            "coordinates":              list of nat lists, each of which is [x, y, z] in reduced units
+            "ref":                      string, reference (origin) of the atomic structure
+
+        Output 
+            filename: string, name of the file to be read
+        """
+
+        # Conversion rate
+        conv = np.pi/180
+
+        # Writing format of 3 columns
+        cols3 = "{:15.9f} {:15.9f} {:15.9f}"
+
+        # Lattice parameters
+        a = struct_dic["a"]
+        b = struct_dic["b"]
+        c = struct_dic["c"]
+
+        # Lattice angles
+        alpha = conv * float(struct_dic["alpha"])
+        beta = conv * float(struct_dic["beta"])
+        gamma = conv * float(struct_dic["gamma"])
+
+        # Number of atoms
+        nat = int(struct_dic["nat"])
+
+        # Number of atom types
+        ntypat = int(struct_dic["ntypat"])
+
+        # List of atom's species
+        species = [ast.literal_eval(struct_dic['species'])[
+            i].replace(' ', '') for i in range(nat)]
+
+        # Coordinates of atoms in relative unit (wrt lattice)
+        coordinates = ast.literal_eval(struct_dic['coordinates'])
+
+        # references of the structure
+        ref = struct_dic["ref"]
+
+        # Further standardize the data
+        spec_df = pd.DataFrame(species, columns=['species'])
+        xred_df = pd.DataFrame(coordinates, columns=['x', 'y', 'z'])
+        coordinates_df = pd.concat(
+            [spec_df, xred_df], axis=1).sort_values(by='species')
+        coordinates_df.reset_index(inplace=True)
+
+        # List of type of atom
+        typat = sorted(list(set(list(coordinates_df['species']))))
+        netypat = [str(species.count(spec)).rjust(6) for spec in typat]
+        typat_formated = [spec.rjust(6) for spec in typat]
+
+        with open(filename, 'w') as out_file:
+            out_file.write(" references: " + ref + '\n')
+            out_file.write("{:7.3f}".format(1) + '\n')
+
+            # Three lattice parameters, a bit math needed & done for c
+            # a
+            out_file.write(cols3.format(a, 0, 0) + '\n')
+            # b
+            out_file.write(cols3.format(
+                b*np.cos(gamma), b*np.sin(gamma), 0) + '\n')
+            # c
+            cx = c*np.cos(beta)
+            cy = c/np.sin(gamma)*(np.cos(alpha)-np.cos(beta)*np.cos(gamma))
+            cz = np.sqrt(c*c-cx*cx-cy*cy)
+            out_file.write(cols3.format(cx, cy, cz) + '\n')
+
+            # Species
+            out_file.write(' '.join(typat_formated) + '\n')
+            out_file.write(' '.join(netypat) + '\n')
+            out_file.write('Direct' + '\n')
+
+            # Now the reduced coordinates
+            for i in range(nat):
+                x = coordinates_df.at[i, 'x']
+                y = coordinates_df.at[i, 'y']
+                z = coordinates_df.at[i, 'z']
+                out_file.write(cols3.format(x, y, z) + '\n')
 
 
 def progress_bar(i_loop, loop_length, action):
