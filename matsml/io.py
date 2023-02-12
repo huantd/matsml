@@ -37,6 +37,8 @@ class AtomicStructure:
             specs:    list of species
             xyz_df:   dataframe, species and xyz coords
         """
+        print('    Read an XYZ atomic structure from ' + str(filename))
+
         xyz = open(str(filename), "r+")
         Lines = xyz.readlines()
         nlines = len(Lines)
@@ -55,16 +57,20 @@ class AtomicStructure:
             z = Lines[i].split()[3]
             xyz_df.loc[len(xyz_df)] = [spec, x, y, z]
 
+        # struct_dict = {'nat': nat}
         return nat, nspecs, specs, xyz_df
 
-    def save_poscar(self, struct_dic, filename):
+    def read_poscar(self, filename):
         """ 
         Functionality
-            Save the atomic structure passed to a poscar-format file
+            Read a poscar and return a struct_dic.
 
         Input
+            filename: string, name of the file to be read
+
+        Output 
             struct_dic: a dictionary containing "a", "b", "c", "alpha", "beta", "gamma", "nat", 
-                        "ntypat", "species", "coordinates", "ref"
+                        "ntypat", "species", "coordinates", "note". 
 
             "a", "b", "c":              real, lattice parameters
             "alpha", "beta", "gamma":   real, lattice angles
@@ -72,11 +78,113 @@ class AtomicStructure:
             "ntypat":                   integer, number of atom types (species)
             "species":                  list of nat names of nat atoms
             "coordinates":              list of nat lists, each of which is [x, y, z] in reduced units
-            "ref":                      string, reference (origin) of the atomic structure
+            "note":                     string, note, to be written in the first line 
+
+        """
+
+        print('    Read a POSCAR atomic structure to ' + str(filename))
+
+        # Conversion rate
+        conv = 180/np.pi
+
+        poscar = open(str(filename), "r+")
+        Lines = poscar.readlines()
+        nlines = len(Lines)
+
+        # First line is comment in POSCAR format
+        line1 = Lines[1].strip('\n').strip('\t').strip(' ')
+        note = 'POSCAR' if len(line1) == 0 else line1
+
+        # Scale of the cell in the second line
+        scale = float(Lines[1].strip('\n').strip('\t').strip(' '))
+
+        # Next 3 lines for a, b, and c vectors
+        avec = [scale*float(el) for el in Lines[2].split()]
+        bvec = [scale*float(el) for el in Lines[3].split()]
+        cvec = [scale*float(el) for el in Lines[4].split()]
+
+        a = np.sqrt(avec[0]*avec[0] + avec[1]*avec[1] + avec[2]*avec[2])
+        b = np.sqrt(bvec[0]*bvec[0] + bvec[1]*bvec[1] + bvec[2]*bvec[2])
+        c = np.sqrt(cvec[0]*cvec[0] + cvec[1]*cvec[1] + cvec[2]*cvec[2])
+
+        # Three angles
+        alpha = np.arccos((bvec[0]*cvec[0] + bvec[1] *
+                          cvec[1] + bvec[2]*cvec[2])/(b*c))*conv
+        beta = np.arccos((avec[0]*cvec[0] + avec[1] *
+                         cvec[1] + avec[2]*cvec[2])/(a*c))*conv
+        gamma = np.arccos((bvec[0]*avec[0] + bvec[1] *
+                          avec[1] + bvec[2]*avec[2])/(b*a))*conv
+
+        # List of species
+        list_species = Lines[5].split()
+
+        # Number of atom types
+        ntypat = len(list_species)
+
+        # Number of each type of atoms
+        netypat = [int(el) for el in Lines[6].split()]
+
+        # Species in details
+        species = []
+        for ityp in range(len(netypat)):
+            for iat in range(netypat[ityp]):
+                species = species + [list_species[ityp]]
+
+        # Number of atoms
+        nat = sum(netypat)
+
+        # Direct or Cartesian
+        poscar_mode_line = str(Lines[7].strip('\n').strip('\t').strip(' '))
+        if poscar_mode_line.startswith('D'):
+            poscar_mode = 'Direct'
+            xred = []
+            for iat in range(8, nat+8, 1):
+                xred.append([float(el) for el in Lines[iat].split()])
+
+        elif poscar_mode_line.startswith('C'):
+            poscar_mode = 'Cartesian'
+            lat_inv = np.linalg.inv(np.transpose(np.array([avec, bvec, cvec])))
+            xcart = []
+            for iat in range(8, nat+8, 1):
+                xcart.append([float(el) for el in Lines[iat].split()])
+            xred = np.transpose(
+                np.matmul(lat_inv, np.transpose(np.array(xcart))))
+
+        coordinates = []
+        for iat in range(nat):
+            coordinates.append([str(np.array(xred)[iat, i]) for i in range(3)])
+
+        # output as a dictionary
+        struct_dic = {'nat': nat, 'ntypat': ntypat, 'a': a, 'b': b, 'c': c,
+                      'alpha': alpha, 'beta': beta, 'gamma': gamma, 'species': species,
+                      'coordinates': coordinates, 'note': note}
+
+        return struct_dic
+
+    def write_poscar(self, struct_dic, filename):
+        """ 
+        Functionality
+            Write the crystalline atomic structure passed to a poscar-format file. In the output,
+            vector a of the box is aligned along the x axis, vector b is on the xy plane, and vector 
+            c is free, i.e., the lattice parameters form a lower triangular square (3x3) matrix.  
+
+        Input
+            struct_dic: a dictionary containing "a", "b", "c", "alpha", "beta", "gamma", "nat", 
+                        "ntypat", "species", "coordinates", "note". 
+
+            "a", "b", "c":              real, lattice parameters
+            "alpha", "beta", "gamma":   real, lattice angles
+            "nat":                      integer, number of atoms
+            "ntypat":                   integer, number of atom types (species)
+            "species":                  list of nat names of nat atoms
+            "coordinates":              list of nat lists, each of which is [x, y, z] in reduced units
+            "note":                     string, note, to be written in the first line 
 
         Output 
-            filename: string, name of the file to be read
+            filename: string, name of the file to be writen
         """
+
+        print('    Write a POSCAR atomic structure to ' + str(filename))
 
         # Conversion rate
         conv = np.pi/180
@@ -85,20 +193,20 @@ class AtomicStructure:
         cols3 = "{:15.9f} {:15.9f} {:15.9f}"
 
         # Lattice parameters
-        a = struct_dic["a"]
-        b = struct_dic["b"]
-        c = struct_dic["c"]
+        a = struct_dic['a']
+        b = struct_dic['b']
+        c = struct_dic['c']
 
         # Lattice angles
-        alpha = conv * float(struct_dic["alpha"])
-        beta = conv * float(struct_dic["beta"])
-        gamma = conv * float(struct_dic["gamma"])
+        alpha = conv * float(struct_dic['alpha'])
+        beta = conv * float(struct_dic['beta'])
+        gamma = conv * float(struct_dic['gamma'])
 
         # Number of atoms
-        nat = int(struct_dic["nat"])
+        nat = int(struct_dic['nat'])
 
         # Number of atom types
-        ntypat = int(struct_dic["ntypat"])
+        ntypat = int(struct_dic['ntypat'])
 
         # List of atom's species
         species = [ast.literal_eval(struct_dic['species'])[
@@ -107,8 +215,8 @@ class AtomicStructure:
         # Coordinates of atoms in relative unit (wrt lattice)
         coordinates = ast.literal_eval(struct_dic['coordinates'])
 
-        # references of the structure
-        ref = struct_dic["ref"]
+        # note on the structure
+        note = struct_dic['note']
 
         # Further standardize the data
         spec_df = pd.DataFrame(species, columns=['species'])
@@ -123,16 +231,14 @@ class AtomicStructure:
         typat_formated = [spec.rjust(6) for spec in typat]
 
         with open(filename, 'w') as out_file:
-            out_file.write(" references: " + ref + '\n')
+            out_file.write(note + '\n')
             out_file.write("{:7.3f}".format(1) + '\n')
 
-            # Three lattice parameters, a bit math needed & done for c
-            # a
+            # Three lattice parameters as a lower triangular matrix, a bit math
+            # needed for c
             out_file.write(cols3.format(a, 0, 0) + '\n')
-            # b
             out_file.write(cols3.format(
                 b*np.cos(gamma), b*np.sin(gamma), 0) + '\n')
-            # c
             cx = c*np.cos(beta)
             cy = c/np.sin(gamma)*(np.cos(alpha)-np.cos(beta)*np.cos(gamma))
             cz = np.sqrt(c*c-cx*cx-cy*cy)
@@ -145,10 +251,8 @@ class AtomicStructure:
 
             # Now the reduced coordinates
             for i in range(nat):
-                x = coordinates_df.at[i, 'x']
-                y = coordinates_df.at[i, 'y']
-                z = coordinates_df.at[i, 'z']
-                out_file.write(cols3.format(x, y, z) + '\n')
+                out_file.write(cols3.format(
+                    float(coordinates_df.at[i, 'x']), float(coordinates_df.at[i, 'y']), float(coordinates_df.at[i, 'z'])) + '\n')
 
 
 def progress_bar(i_loop, loop_length, action):
