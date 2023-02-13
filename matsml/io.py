@@ -84,7 +84,7 @@ class AtomicStructure:
 
         """
 
-        print('    Read a POSCAR atomic structure to ' + str(filename))
+        print('    Read a POSCAR atomic structure from ' + str(filename))
 
         # Conversion rate
         conv = 180/np.pi
@@ -139,22 +139,24 @@ class AtomicStructure:
         # Direct or Cartesian, compute and return xred and xcart
         poscar_mode_line = str(Lines[7].strip('\n').strip('\t').strip(' '))
 
-        if poscar_mode_line.startswith('D'):
+        if (poscar_mode_line.startswith('D')) or (poscar_mode_line.startswith('d')):
             poscar_mode = 'Direct'
             rprim = np.transpose(np.array([avec, bvec, cvec]))
             xred = []
             for iat in range(8, nat+8, 1):
-                xred.append([float(el) for el in Lines[iat].split()])
+                xred.append([float(Lines[iat].split()[i]) for i in range(3)])
             xcart = np.transpose(np.matmul(rprim, np.transpose(xred)))
-        elif poscar_mode_line.startswith('C'):
+
+        elif (poscar_mode_line.startswith('C')) or (poscar_mode_line.startswith('c')):
             poscar_mode = 'Cartesian'
             rprim_inv = np.linalg.inv(
                 np.transpose(np.array([avec, bvec, cvec])))
             xcart = []
             for iat in range(8, nat+8, 1):
-                xcart.append([float(el) for el in Lines[iat].split()])
+                xcart.append([float(Lines[iat].split()[i]) for i in range(3)])
             xred = np.transpose(
                 np.matmul(rprim_inv, np.transpose(np.array(xcart))))
+
         # Compile two lists
         xred_list = []
         xcart_list = []
