@@ -70,14 +70,16 @@ class AtomicStructure:
 
         Output 
             struct_dic: a dictionary containing "a", "b", "c", "alpha", "beta", "gamma", "nat", 
-                        "ntypat", "species", "coordinates", "note". 
+                        "ntypat", "species", "xred", "xcart", "ucvol", "note". 
 
             "a", "b", "c":              real, lattice parameters
             "alpha", "beta", "gamma":   real, lattice angles
             "nat":                      integer, number of atoms
             "ntypat":                   integer, number of atom types (species)
+            "ucvol":                    unit cell volume
             "species":                  list of nat names of nat atoms
-            "coordinates":              list of nat lists, each of which is [x, y, z] in reduced units
+            "xred":                     list of nat lists, each of which is [x, y, z] in reduced units
+            "xcart":                    list of nat lists, each of which is [x, y, z] in cartesian
             "note":                     string, note, to be written in the first line 
 
         """
@@ -103,17 +105,18 @@ class AtomicStructure:
         bvec = [scale*float(el) for el in Lines[3].split()]
         cvec = [scale*float(el) for el in Lines[4].split()]
 
-        a = np.sqrt(avec[0]*avec[0] + avec[1]*avec[1] + avec[2]*avec[2])
-        b = np.sqrt(bvec[0]*bvec[0] + bvec[1]*bvec[1] + bvec[2]*bvec[2])
-        c = np.sqrt(cvec[0]*cvec[0] + cvec[1]*cvec[1] + cvec[2]*cvec[2])
+        # Length of 3 lattice parameters
+        a = np.sqrt(dot_prod(avec, avec))
+        b = np.sqrt(dot_prod(bvec, bvec))
+        c = np.sqrt(dot_prod(cvec, cvec))
 
-        # Three angles
-        alpha = np.arccos((bvec[0]*cvec[0] + bvec[1] *
-                          cvec[1] + bvec[2]*cvec[2])/(b*c))*conv
-        beta = np.arccos((avec[0]*cvec[0] + avec[1] *
-                         cvec[1] + avec[2]*cvec[2])/(a*c))*conv
-        gamma = np.arccos((bvec[0]*avec[0] + bvec[1] *
-                          avec[1] + bvec[2]*avec[2])/(b*a))*conv
+        # Unit cell volume
+        ucvol = dot_prod(cross_prod(avec, bvec), cvec)
+
+        # Three angles, in degrees
+        alpha = np.arccos(dot_prod(bvec, cvec)/(b*c))*conv
+        beta = np.arccos(dot_prod(avec, cvec)/(a*c))*conv
+        gamma = np.arccos(dot_prod(bvec, avec)/(b*a))*conv
 
         # List of species
         list_species = Lines[5].split()
@@ -133,31 +136,36 @@ class AtomicStructure:
         # Number of atoms
         nat = sum(netypat)
 
-        # Direct or Cartesian
+        # Direct or Cartesian, compute and return xred and xcart
         poscar_mode_line = str(Lines[7].strip('\n').strip('\t').strip(' '))
+
         if poscar_mode_line.startswith('D'):
             poscar_mode = 'Direct'
+            rprim = np.transpose(np.array([avec, bvec, cvec]))
             xred = []
             for iat in range(8, nat+8, 1):
                 xred.append([float(el) for el in Lines[iat].split()])
-
+            xcart = np.transpose(np.matmul(rprim, np.transpose(xred)))
         elif poscar_mode_line.startswith('C'):
             poscar_mode = 'Cartesian'
-            lat_inv = np.linalg.inv(np.transpose(np.array([avec, bvec, cvec])))
+            rprim_inv = np.linalg.inv(
+                np.transpose(np.array([avec, bvec, cvec])))
             xcart = []
             for iat in range(8, nat+8, 1):
                 xcart.append([float(el) for el in Lines[iat].split()])
             xred = np.transpose(
-                np.matmul(lat_inv, np.transpose(np.array(xcart))))
-
-        coordinates = []
+                np.matmul(rprim_inv, np.transpose(np.array(xcart))))
+        # Compile two lists
+        xred_list = []
+        xcart_list = []
         for iat in range(nat):
-            coordinates.append([str(np.array(xred)[iat, i]) for i in range(3)])
+            xred_list.append([str(np.array(xred)[iat, i]) for i in range(3)])
+            xcart_list.append([str(np.array(xcart)[iat, i]) for i in range(3)])
 
         # output as a dictionary
         struct_dic = {'nat': nat, 'ntypat': ntypat, 'a': a, 'b': b, 'c': c,
                       'alpha': alpha, 'beta': beta, 'gamma': gamma, 'species': species,
-                      'coordinates': coordinates, 'note': note}
+                      'xred': xred_list, 'xcart': xcart_list, 'ucvol': ucvol, 'note': note}
 
         return struct_dic
 
@@ -170,17 +178,18 @@ class AtomicStructure:
 
         Input
             struct_dic: a dictionary containing "a", "b", "c", "alpha", "beta", "gamma", "nat", 
-                        "ntypat", "species", "coordinates", "note". 
+                        "ntypat", "species", "xred", "xcart", "ucvol", "note". 
 
             "a", "b", "c":              real, lattice parameters
             "alpha", "beta", "gamma":   real, lattice angles
             "nat":                      integer, number of atoms
             "ntypat":                   integer, number of atom types (species)
+            "ucvol":                    unit cell volume
             "species":                  list of nat names of nat atoms
-            "coordinates":              list of nat lists, each of which is [x, y, z] in reduced units
+            "xred":                     list of nat lists, each of which is [x, y, z] in reduced units
+            "xcart":                    list of nat lists, each of which is [x, y, z] in cartesian
             "note":                     string, note, to be written in the first line 
 
-        Output 
             filename: string, name of the file to be writen
         """
 
@@ -213,20 +222,20 @@ class AtomicStructure:
             i].replace(' ', '') for i in range(nat)]
 
         # Coordinates of atoms in relative unit (wrt lattice)
-        coordinates = ast.literal_eval(struct_dic['coordinates'])
+        xred = ast.literal_eval(struct_dic['xred'])
 
         # note on the structure
         note = struct_dic['note']
 
         # Further standardize the data
         spec_df = pd.DataFrame(species, columns=['species'])
-        xred_df = pd.DataFrame(coordinates, columns=['x', 'y', 'z'])
-        coordinates_df = pd.concat(
+        xred_df = pd.DataFrame(xred, columns=['x', 'y', 'z'])
+        sorted_xred_df = pd.concat(
             [spec_df, xred_df], axis=1).sort_values(by='species')
-        coordinates_df.reset_index(inplace=True)
+        sorted_xred_df.reset_index(inplace=True)
 
         # List of type of atom
-        typat = sorted(list(set(list(coordinates_df['species']))))
+        typat = sorted(list(set(list(sorted_xred_df['species']))))
         netypat = [str(species.count(spec)).rjust(6) for spec in typat]
         typat_formated = [spec.rjust(6) for spec in typat]
 
@@ -252,7 +261,7 @@ class AtomicStructure:
             # Now the reduced coordinates
             for i in range(nat):
                 out_file.write(cols3.format(
-                    float(coordinates_df.at[i, 'x']), float(coordinates_df.at[i, 'y']), float(coordinates_df.at[i, 'z'])) + '\n')
+                    float(sorted_xred_df.at[i, 'x']), float(sorted_xred_df.at[i, 'y']), float(sorted_xred_df.at[i, 'z'])) + '\n')
 
 
 def progress_bar(i_loop, loop_length, action):
@@ -427,3 +436,31 @@ def plot_prob_preds(y_cols, y_md_cols, yerr_md_cols, n_tests, pdf_output):
             print('    showing '+str(y_col))
             plt.show()
         plt.close()
+
+
+def dot_prod(a, b):
+    '''
+    Dot product of 2 lists a and b, each has the same dimensionality
+    '''
+    if (type(a) is list) and (type(b) is list) and (len(a) == len(b)):
+        prod = sum([a[i]*b[i] for i in range(len(a))])
+    else:
+        raise ValueError(
+            '      ERROR, dot_prod: something wrong with 2 inputs')
+
+    return prod
+
+
+def cross_prod(a, b):
+    '''
+    Cross product of 2 list a and b, each has 3 elements
+    '''
+
+    if (type(a) is list) and (type(b) is list) and (len(a) == 3) and (len(b) == 3):
+        prod = [(a[1]*b[2] - a[2]*b[1]), (a[2]*b[0] -
+                                          a[0]*b[2]), (a[0]*b[1] - a[1]*b[0])]
+    else:
+        raise ValueError(
+            '      ERROR, cross_prod: something wrong with 2 inputs')
+
+    return prod
