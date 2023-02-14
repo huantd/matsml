@@ -3,7 +3,7 @@
 import atexit
 import pandas as pd
 import numpy as np
-import ast
+import json
 
 
 @atexit.register
@@ -128,10 +128,10 @@ class AtomicStructure:
         netypat = [int(el) for el in Lines[6].split()]
 
         # Species in details
-        species = []
+        species_tmp = []
         for ityp in range(len(netypat)):
-            for iat in range(netypat[ityp]):
-                species = species + [list_species[ityp]]
+            species_tmp = species_tmp + [list_species[ityp] for iat in range(netypat[ityp])]
+        species = '%s' % json.dumps(species_tmp)
 
         # Number of atoms
         nat = sum(netypat)
@@ -145,6 +145,7 @@ class AtomicStructure:
             xred = []
             for iat in range(8, nat+8, 1):
                 xred.append([float(Lines[iat].split()[i]) for i in range(3)])
+
             xcart = np.transpose(np.matmul(rprim, np.transpose(xred)))
 
         elif (poscar_mode_line.startswith('C')) or (poscar_mode_line.startswith('c')):
@@ -158,11 +159,8 @@ class AtomicStructure:
                 np.matmul(rprim_inv, np.transpose(np.array(xcart))))
 
         # Compile two lists
-        xred_list = []
-        xcart_list = []
-        for iat in range(nat):
-            xred_list.append([str(np.array(xred)[iat, i]) for i in range(3)])
-            xcart_list.append([str(np.array(xcart)[iat, i]) for i in range(3)])
+        xred_list = '%s' % json.dumps([[np.array(xred)[iat, i] for i in range(3)] for iat in range(nat)])
+        xcart_list = '%s' % json.dumps([[np.array(xcart)[iat, i] for i in range(3)] for iat in range(nat)])
 
         # output as a dictionary
         struct_dic = {'nat': nat, 'ntypat': ntypat, 'a': a, 'b': b, 'c': c,
@@ -220,11 +218,10 @@ class AtomicStructure:
         ntypat = int(struct_dic['ntypat'])
 
         # List of atom's species
-        species = [ast.literal_eval(struct_dic['species'])[
-            i].replace(' ', '') for i in range(nat)]
+        species = [json.loads(struct_dic['species'])[i].replace(' ', '') for i in range(nat)]
 
         # Coordinates of atoms in relative unit (wrt lattice)
-        xred = ast.literal_eval(struct_dic['xred'])
+        xred = json.loads(struct_dic['xred'])
 
         # note on the structure
         note = struct_dic['note']
