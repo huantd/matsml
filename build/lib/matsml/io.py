@@ -82,6 +82,8 @@ class AtomicStructure:
             "xcart":                    list of nat lists, each of which is [x, y, z] in cartesian
             "note":                     string, note, to be written in the first line 
 
+        NOTE: POSCAR format that has additional lines such as "Selective dynamics" current not supported
+
         """
 
         print('    Read a POSCAR atomic structure from ' + str(filename))
