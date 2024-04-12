@@ -4,6 +4,7 @@ pyproject.toml
 setup.cfg
 setup.py
 matsml/__init__.py
+matsml/constants.py
 matsml/data.py
 matsml/fingerprint.py
 matsml/init.py

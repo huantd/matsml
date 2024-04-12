@@ -47,7 +47,7 @@ class AtomicStructure:
         xyz_df = pd.DataFrame(columns=columns)
         specs = []
         nspecs = 0
-        for i in range(2, nat+2, 1):
+        for i in range(2, nat + 2, 1):
             spec = Lines[i].split()[0]
             if (not any(sp == spec for sp in specs)):
                 specs.append(spec)
@@ -132,7 +132,8 @@ class AtomicStructure:
         # Species in details
         species_tmp = []
         for ityp in range(len(netypat)):
-            species_tmp = species_tmp + [list_species[ityp] for iat in range(netypat[ityp])]
+            species_tmp = species_tmp + [list_species[ityp]
+                                         for iat in range(netypat[ityp])]
         species = '%s' % json.dumps(species_tmp)
 
         # Number of atoms
@@ -161,8 +162,10 @@ class AtomicStructure:
                 np.matmul(rprim_inv, np.transpose(np.array(xcart))))
 
         # Compile two lists
-        xred_list = '%s' % json.dumps([[np.array(xred)[iat, i] for i in range(3)] for iat in range(nat)])
-        xcart_list = '%s' % json.dumps([[np.array(xcart)[iat, i] for i in range(3)] for iat in range(nat)])
+        xred_list = '%s' % json.dumps(
+            [[np.array(xred)[iat, i] for i in range(3)] for iat in range(nat)])
+        xcart_list = '%s' % json.dumps(
+            [[np.array(xcart)[iat, i] for i in range(3)] for iat in range(nat)])
 
         # output as a dictionary
         struct_dic = {'nat': nat, 'ntypat': ntypat, 'a': a, 'b': b, 'c': c,
@@ -220,7 +223,8 @@ class AtomicStructure:
         ntypat = int(struct_dic['ntypat'])
 
         # List of atom's species
-        species = [json.loads(struct_dic['species'])[i].replace(' ', '') for i in range(nat)]
+        species = [json.loads(struct_dic['species'])[
+            i].replace(' ', '') for i in range(nat)]
 
         # Coordinates of atoms in relative unit (wrt lattice)
         xred = json.loads(struct_dic['xred'])
@@ -318,41 +322,41 @@ def plot_det_preds(y_cols, y_md_cols, n_tests, log_scaling, pdf_output):
             plt.xscale('log')
             plt.yscale('log')
         else:
-            plt.xlim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
-            plt.ylim(lmin-0.1*(lmax-lmin), lmax+0.1*(lmax-lmin))
+            plt.xlim(lmin - 0.1*(lmax - lmin), lmax + 0.1*(lmax - lmin))
+            plt.ylim(lmin - 0.1*(lmax - lmin), lmax + 0.1*(lmax - lmin))
 
-        rmse_train = np.sqrt(np.mean((train_df[y_col]-train_df[y_md_col])**2))
+        rmse_train = np.sqrt(
+            np.mean((train_df[y_col] - train_df[y_md_col])**2))
         r2_train = r2_score(train_df[y_col], train_df[y_md_col])
         if n_tests > 0:
-            rmse_test = np.sqrt(np.mean((test_df[y_col]-test_df[y_md_col])**2))
+            rmse_test = np.sqrt(
+                np.mean((test_df[y_col] - test_df[y_md_col])**2))
             r2_test = r2_score(test_df[y_col], test_df[y_md_col])
 
-        plt.tick_params(axis='x', which='both', bottom=True, top=False,
-                        labelbottom=True)
+        plt.tick_params(axis='x', which='both', bottom=True,
+                        top=False, labelbottom=True)
         plt.tick_params(axis='y', which='both', direction='in')
         plt.ylabel("Predicted value", size=12)
         plt.xlabel("Reference value", size=12)
-        plt.scatter(train_df[y_col], train_df[y_md_col], color='tab:red',
-                    marker='s', alpha=0.95,
-                    label=r'training, (rmse & $R^2$) = (%.3f & %.3f)'
-                    % (rmse_train, r2_train))
+        plt.plot([lmin - 0.01*(lmax - lmin), lmax + 0.01*(lmax - lmin)], [lmin -
+                 0.01*(lmax - lmin), lmax + 0.01*(lmax - lmin)], color='green', linewidth=2.5)
+        plt.scatter(train_df[y_col], train_df[y_md_col], color='tab:red', marker='s', alpha=0.95,
+                    label=r'training, (rmse & $R^2$) = (%.3f & %.3f)' % (rmse_train, r2_train))
 
         print('    training, (rmse & R2) = ( %.3f & %.3f )' %
               (rmse_train, r2_train))
         if n_tests > 0:
-            plt.scatter(test_df[y_col], test_df[y_md_col], color='tab:blue',
-                        marker='o', alpha=0.6,
-                        label=r'test, (rmse & $R^2$) = (%.3f & %.3f)'
-                        % (rmse_test, r2_test))
+            plt.scatter(test_df[y_col], test_df[y_md_col], color='tab:blue', marker='o',
+                        alpha=0.6, label=r'test, (rmse & $R^2$) = (%.3f & %.3f)' % (rmse_test, r2_test))
             print('    test, (rmse & R2) = ( %.3f & %.3f )' %
                   (rmse_test, r2_test))
         plt.legend(loc="lower right", fontsize=11)
 
         if pdf_output:
-            plt.savefig('model_'+str(y_col)+'.pdf')
-            print('    model_'+str(y_col)+'.pdf saved')
+            plt.savefig('model_' + str(y_col) + '.pdf')
+            print('    model_'+str(y_col) + '.pdf saved')
         else:
-            print('    showing '+str(y_col))
+            print('    showing ' + str(y_col))
             plt.show()
         plt.close()
 
