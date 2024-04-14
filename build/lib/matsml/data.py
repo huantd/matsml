@@ -25,11 +25,14 @@ class Datasets:
         self.__dict__.update(**kwargs)
         self.kwargs = kwargs
 
-        gtid = 'af91149f2a4114f8f55cb001ad5c5e2d57794dd7'
-        self.git_data = 'https://raw.githubusercontent.com/huantd/matsml/' \
-            + gtid + '/matsml/data_files/'
+        #gtid = 'af91149f2a4114f8f55cb001ad5c5e2d57794dd7'
+        #self.git_data = 'https://raw.githubusercontent.com/huantd/matsml/' \
+        #    + gtid + '/matsml/data_files/'
 
+        self.git_data = 'https://raw.githubusercontent.com/huantd/huantd.github.io/main/data/' \
+         
         sum_url = os.path.join(self.git_data, 'datasets.csv.gz')
+        print ("sum_url", sum_url)
         self.datasets = pd.read_csv(io.BytesIO(requests.get(sum_url).content),
                                     sep=",", compression="gzip", index_col=0, quotechar='"')
 
