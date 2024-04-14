@@ -28,7 +28,6 @@ class Datasets:
         self.git_data = 'https://raw.githubusercontent.com/huantd/huantd.github.io/main/data/' \
          
         sum_url = os.path.join(self.git_data, 'datasets.csv.gz')
-        print ("sum_url", sum_url)
         self.datasets = pd.read_csv(io.BytesIO(requests.get(sum_url).content),
                                     sep=",", compression="gzip", index_col=0, quotechar='"')
 
