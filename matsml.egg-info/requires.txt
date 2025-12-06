@@ -1,0 +1,11 @@
+numpy>=1.18
+pandas>=1.0
+scikit-learn>=0.22
+matplotlib
+scipy>=1.1.0
+
+[tf]
+tensorflow
+tf-keras
+keras
+tensorflow_probability

@@ -1,22 +1,33 @@
 # By Huan Tran (huantd@gmail.com), 2021
-#
+
 import atexit
 import pandas as pd
 import numpy as np
 import json
+import sys
+
 
 
 @atexit.register
 def goodbye():
-    print('  ')
-    print('  *****')
-    print('  matsML job completed')
+    """Print a message when the program exits."""
+    print('\n  *****\n  matsML job completed\n')
 
 
-def get_key(key, dic, val):
-    """ get key value from a dic with a default if not found """
+def get_key(key, dic, default_value):
+    """
+    Retrieve the value associated with a key in a dictionary, 
+    returning a default value if the key is not found.
 
-    return dic[key] if key in dic else val
+    Parameters:
+    key (str): The key to look up in the dictionary.
+    dic (dict): The dictionary to search in.
+    default_value: The value to return if the key is not found.
+
+    Returns:
+    The value associated with the key, or the default value if the key is not found.
+    """
+    return dic.get(key, default_value)
 
 
 class AtomicStructure:
@@ -269,20 +280,31 @@ class AtomicStructure:
                     float(sorted_xred_df.at[i, 'x']), float(sorted_xred_df.at[i, 'y']), float(sorted_xred_df.at[i, 'z'])) + '\n')
 
 
-def progress_bar(i_loop, loop_length, action):
-    """ Progress bar for some slow works """
+def progress_bar(current_iteration, total_iterations, action):
+    """
+    Displays a progress bar to indicate the completion of a loop.
 
-    import sys
+    Parameters:
+    current_iteration (int): The current loop iteration (0-indexed).
+    total_iterations (int): The total number of iterations in the loop.
+    action (str): The action to perform. It can be either 'update' (for updating the progress bar)
+                  or 'finish' (to print a newline at the end).
+    """
 
     toolbar_width = 50
-    toolbar_step = loop_length/toolbar_width
+    step_size = total_iterations / toolbar_width
+
     if action == 'update':
-        sys.stdout.write("    [%-50s] %d%%" % ('='*min(int(i_loop/toolbar_step) +
-                                                       1, 100), int(100/toolbar_width*i_loop/toolbar_step+1)))
+        sys.stdout.write(
+            "    [%-50s] %d%%" % (
+                '=' * min(int(current_iteration / step_size) + 1, 100),
+                int(100 / toolbar_width * current_iteration / step_size + 1)
+            )
+        )
         sys.stdout.flush()
+
     elif action == 'finish':
         sys.stdout.write('\n')
-
 
 def plot_det_preds(y_cols, y_md_cols, n_tests, log_scaling, pdf_output):
     """ 
@@ -295,6 +317,7 @@ def plot_det_preds(y_cols, y_md_cols, n_tests, log_scaling, pdf_output):
     import numpy as np
     from sklearn.metrics import r2_score
 
+    print('  ')
     print('  Plot results in "training.csv" & "test.csv"')
 
     train_df = pd.read_csv('training.csv')
@@ -306,8 +329,8 @@ def plot_det_preds(y_cols, y_md_cols, n_tests, log_scaling, pdf_output):
     for y_col, y_md_col in zip(y_cols, y_md_cols):
         plt.figure(figsize=(6, 6))
 
-        plt.rc('xtick', labelsize=11)
-        plt.rc('ytick', labelsize=11)
+        plt.rc('xtick', labelsize=10)
+        plt.rc('ytick', labelsize=10)
 
         if n_tests > 0:
             lmin = min(test_df[y_col].min(), train_df[y_col].min(),
@@ -336,8 +359,8 @@ def plot_det_preds(y_cols, y_md_cols, n_tests, log_scaling, pdf_output):
         plt.tick_params(axis='x', which='both', bottom=True,
                         top=False, labelbottom=True)
         plt.tick_params(axis='y', which='both', direction='in')
-        plt.ylabel("Predicted value", size=12)
-        plt.xlabel("Reference value", size=12)
+        plt.ylabel("Predicted value", size=11)
+        plt.xlabel("Reference value", size=11)
         plt.plot([lmin - 0.01*(lmax - lmin), lmax + 0.01*(lmax - lmin)], [lmin -
                  0.01*(lmax - lmin), lmax + 0.01*(lmax - lmin)], color='green', linewidth=2.5)
         plt.scatter(train_df[y_col], train_df[y_md_col], color='tab:red', marker='s', alpha=0.95,
@@ -350,7 +373,7 @@ def plot_det_preds(y_cols, y_md_cols, n_tests, log_scaling, pdf_output):
                         alpha=0.6, label=r'test, (rmse & $R^2$) = (%.3f & %.3f)' % (rmse_test, r2_test))
             print('    test, (rmse & R2) = ( %.3f & %.3f )' %
                   (rmse_test, r2_test))
-        plt.legend(loc="lower right", fontsize=11)
+        plt.legend(loc="lower right", fontsize=9)
 
         if pdf_output:
             plt.savefig('model_' + str(y_col) + '.pdf')
@@ -387,7 +410,7 @@ def plot_prob_preds(y_cols, y_md_cols, yerr_md_cols, n_tests, pdf_output):
     import numpy as np
     from sklearn.metrics import r2_score
 
-    print('')
+    print('  ')
     print('  Plot results in "training.csv" & "test.csv"')
 
     train_df = pd.read_csv('training.csv')

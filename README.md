@@ -1,13 +1,34 @@
-# matsml
-A machine learning toolkit for materials science
+matsml
 
-Packages needed for matsml
- - numpy (https://numpy.org/)
- - pandas (https://pandas.pydata.org/)
- - scikit-learn (https://scikit-learn.org/stable/)
- - keras (https://keras.io/)
- - tensorflow (https://www.tensorflow.org/)
- - tensorflow probability (https://www.tensorflow.org/probability)
- - ase (https://wiki.fysik.dtu.dk/ase/)
- - dscribe (https://singroup.github.io/dscribe/latest/index.html)
- - matplotlib (https://matplotlib.org/)
+Matsml is a comprehensive machine learning toolkit designed for materials science applications. It provides a set of powerful tools for data analysis, model development, and the discovery of novel materials using machine learning techniques.
+
+Dependencies
+To use matsml, the following packages are required:
+ - NumPy: https://numpy.org/
+ - Pandas: https://pandas.pydata.org/
+ - Scikit-learn: https://scikit-learn.org/stable/
+ - Keras: https://keras.io/
+ - TensorFlow: https://www.tensorflow.org/
+ - TensorFlow Probability: https://www.tensorflow.org/probability
+ - ASE: https://wiki.fysik.dtu.dk/ase/
+ - Dscribe: https://singroup.github.io/dscribe/latest/index.html
+ - Matplotlib: https://matplotlib.org/
+
+Installation
+To install matsml and its dependencies, follow the steps below:
+
+Ensure that you have the latest version of pip, setuptools, and wheel:
+    pip install --upgrade pip setuptools wheel
+
+
+Install the core dependencies:
+    pip install "numpy>=1.18" "pandas>=1.0" "scikit-learn>=0.22" "scipy>=1.1.0"
+
+
+If you require TensorFlow and related packages (such as Keras and TensorFlow Probability), install the extra dependencies:
+    pip install .[tf]
+
+
+Finally, install matsml:
+    pip install .
+

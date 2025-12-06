@@ -378,14 +378,21 @@ class Fingerprint:
         n_atoms_max, nspecs, species = get_struct_params(
             self.data_loc, struct_df)
 
-        rcut = 8.0
-        nmax = 7
-        lmax = 6
+        r_cut = 8.0
+        n_max = 7
+        l_max = 6
 
         periodic = True if self.fp_type == 'soap_crystals' else False
 
-        average_soap = SOAP(species=species, rcut=rcut, nmax=nmax,
-                            lmax=lmax, periodic=periodic, average="inner", sparse=False)
+        average_soap = SOAP(
+                species=species, 
+                r_cut=r_cut, 
+                n_max=n_max,
+                l_max=l_max, 
+                periodic=periodic, 
+                average="inner", 
+                sparse=False
+        )
 
         fp_dim = average_soap.get_number_of_features()
         columns = ['id', 'target']+['soap_'+str(i).zfill(4) for i in
@@ -412,8 +419,18 @@ class Fingerprint:
             this_soap = [str(v), str(target)]+list(average_soap.create(struct) *
                                                    len(struct))
 
-            soap = soap.append(pd.DataFrame(np.array(this_soap).
-                                            reshape((1, fp_dim+2)), columns=columns))
+            soap = pd.concat(
+                [soap, pd.DataFrame(
+                    np.array(this_soap).reshape(1, fp_dim + 2),
+                    columns=columns
+                )],
+                axis=0
+            )
+
+            #soap = pd.concat([soap, pd.DataFrame(np.array(this_soap).
+            #                                reshape((1, fp_dim+2)), columns=columns)], axis = 0)
+            #soap = soap.append(pd.DataFrame(np.array(this_soap).
+            #                                reshape((1, fp_dim+2)), columns=columns))
 
         if self.verbosity == 0:
             sys.stdout.write('\n')

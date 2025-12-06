@@ -1,7 +1,6 @@
 LICENSE
 README.md
 pyproject.toml
-setup.cfg
 setup.py
 matsml/__init__.py
 matsml/constants.py
@@ -13,4 +12,5 @@ matsml/models.py
 matsml.egg-info/PKG-INFO
 matsml.egg-info/SOURCES.txt
 matsml.egg-info/dependency_links.txt
+matsml.egg-info/requires.txt
 matsml.egg-info/top_level.txt

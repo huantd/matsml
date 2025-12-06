@@ -1,19 +1,22 @@
-""" Huan Tran (huantd@gmail.com)
-
-    Data module: data related functionalities (pre/postprocessing) needed for 
-      matsML.
-
 """
+Author: Huan Tran (huantd@gmail.com)
+
+Data module: data-related functionalities (pre/post-processing) needed for
+matsML.
+"""
+
+import io
+import os
+import random
 
 import numpy as np
 import pandas as pd
-from matsml.io import get_key, goodbye
+import requests
+
 from sklearn import preprocessing
 from sklearn.metrics import mean_squared_error
-import io
-import os
-import requests
-import random
+
+from matsml.io import get_key, goodbye
 
 
 class Datasets:
@@ -82,6 +85,7 @@ class ProcessData:
         self.save_split = get_key('save_split', self.data_params, True)
 
     def read_data(self):
+        print('  ')
         print('  Read data')
 
         self.data_file = self.data_params['data_file']
@@ -161,6 +165,7 @@ class ProcessData:
 
         x = self.x
 
+        print('  ')
         print('  Scaling x'.ljust(32), self.x_scaling)
 
         if self.x_scaling == 'minmax':
@@ -202,6 +207,8 @@ class ProcessData:
         y_cols = self.y_cols
         y_dim = self.y_dim
         sel_cols = self.sel_cols
+
+        print('  ')
         print('  Scaling y'.ljust(32), self.y_scaling)
 
         # Compute some distribution parameters and do scaling
@@ -315,6 +322,7 @@ class ProcessData:
         'random' and 'stratified' currently available, more to come.
         """
 
+        print('  ')
         print('  Prepare train/test sets'.ljust(32), self.sampling)
 
         id_col = self.id_col

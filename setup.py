@@ -1,11 +1,9 @@
-import setuptools
-import os
-from setuptools import setup, find_packages, find_namespace_packages
+from setuptools import setup, find_packages
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-setuptools.setup(
+setup(
     name="matsml",
     version="1.3.0",
     author="Huan Tran",
@@ -16,13 +14,28 @@ setuptools.setup(
     url="https://github.com/huantd/matsml.git",
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: GNU",
+        # Replace with an actual license classifier if you use GPL:
+        # "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
     packages=find_packages(),
-    package=['matsml'],
-    package_dir={'matsml': 'matsml'},
+    package_dir={'matsml': 'matsml'},  
     include_package_data=True,
-    python_requires=">=3.6",
-    setup_requires=["numpy","tensorflow","wheel","sklearn","pandas","keras","tensorflow_probability"]
+    python_requires=">=3.7",
+    install_requires=[
+        "numpy>=1.18",
+        "pandas>=1.0",
+        "scikit-learn>=0.22",
+        "matplotlib",
+        "scipy>=1.1.0",         
+    ],
+    extras_require={
+        "tf": [
+            "tensorflow",
+            "tf-keras",
+            "keras",
+            "tensorflow_probability",
+        ]
+    },
 )
+
