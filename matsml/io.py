@@ -277,7 +277,9 @@ class AtomicStructure:
             # Now the reduced coordinates
             for i in range(nat):
                 out_file.write(cols3.format(
-                    float(sorted_xred_df.at[i, 'x']), float(sorted_xred_df.at[i, 'y']), float(sorted_xred_df.at[i, 'z'])) + '\n')
+                    float(sorted_xred_df.at[i, 'x']), 
+                    float(sorted_xred_df.at[i, 'y']), 
+                    float(sorted_xred_df.at[i, 'z'])) + '\n')
 
 
 def progress_bar(current_iteration, total_iterations, action):
@@ -449,14 +451,30 @@ def plot_prob_preds(y_cols, y_md_cols, yerr_md_cols, n_tests, pdf_output):
         plt.tick_params(axis='y', which='both', direction='in')
         plt.ylabel("Predicted value", size=12)
         plt.xlabel("Reference value", size=12)
-        plt.errorbar(train_df[y_col], train_df[y_md_col], yerr=train_df[yerr_md_col], color='tab:red', fmt='s', alpha=0.95,
-                     label=r'training, (rmse & $R^2$) = ( %.3f & %.3f )'
-                     % (rmse_train, r2_train))
+
+        plt.errorbar(
+            train_df[y_col], 
+            train_df[y_md_col], 
+            yerr=train_df[yerr_md_col], 
+            color='tab:red', 
+            fmt='s', 
+            alpha=0.95,
+            label=r'training, (rmse & $R^2$) = ( %.3f & %.3f )' % (rmse_train, r2_train)
+        )
+
         if n_tests > 0:
-            plt.errorbar(test_df[y_col], test_df[y_md_col], yerr=test_df[yerr_md_col], color='tab:blue', fmt='o', alpha=0.6,
-                         label=r'test, (rmse & $R^2$) = ( %.3f & %.3f )'
-                         % (rmse_test, r2_test))
+            plt.errorbar(
+                test_df[y_col], 
+                test_df[y_md_col], 
+                yerr=test_df[yerr_md_col], 
+                color='tab:blue', 
+                fmt='o', 
+                alpha=0.6,
+                label=r'test, (rmse & $R^2$) = ( %.3f & %.3f )' % (rmse_test, r2_test)
+            )
+
         plt.legend(loc="lower right", fontsize=11)
+
         if pdf_output:
             plt.savefig('model_'+str(y_col)+'.pdf')
             print('    model_'+str(y_col)+'.pdf saved')
@@ -467,28 +485,34 @@ def plot_prob_preds(y_cols, y_md_cols, yerr_md_cols, n_tests, pdf_output):
 
 
 def dot_prod(a, b):
-    '''
-    Dot product of 2 lists a and b, each has the same dimensionality
-    '''
+    """
+    Dot product of two lists a and b, each having the same dimensionality.
+    """
+
     if (type(a) is list) and (type(b) is list) and (len(a) == len(b)):
         prod = sum([a[i]*b[i] for i in range(len(a))])
     else:
         raise ValueError(
-            '      ERROR, dot_prod: something wrong with 2 inputs')
+            '      ERROR, dot_prod: something wrong with 2 inputs'
+        )
 
     return prod
 
 
 def cross_prod(a, b):
-    '''
-    Cross product of 2 list a and b, each has 3 elements
-    '''
+    """
+    Cross product of two lists a and b, each containing exactly 3 elements.
+    """
 
     if (type(a) is list) and (type(b) is list) and (len(a) == 3) and (len(b) == 3):
-        prod = [(a[1]*b[2] - a[2]*b[1]), (a[2]*b[0] -
-                                          a[0]*b[2]), (a[0]*b[1] - a[1]*b[0])]
+        prod = [
+            a[1]*b[2] - a[2]*b[1], 
+            a[2]*b[0] - a[0]*b[2], 
+            a[0]*b[1] - a[1]*b[0]
+        ]
     else:
         raise ValueError(
-            '      ERROR, cross_prod: something wrong with 2 inputs')
+            '      ERROR, cross_prod: something wrong with 2 inputs'
+        )
 
     return prod

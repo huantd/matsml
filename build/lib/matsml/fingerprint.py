@@ -169,21 +169,38 @@ class Fingerprint:
             elif self.verbosity == 0:
                 progress_bar(k, len(struct_df), 'update')
 
-            target = np.array(struct_df.loc[struct_df['file_name'] ==
-                                            str(v)]['target']).astype(float)[0]
+            target = np.array(
+                struct_df.loc[
+                    struct_df['file_name'] == str(v)
+                ]['target']
+            ).astype(float)[0]
 
             cm_flatten = cm_all[idx]
             gcm = [str(v), str(target)]
 
             for i in range(fp_dim):
-                gcm_el = sum(self.gaussian(cm_flatten[j], sigma, ri[i]) for j in
-                             range(len(cm_flatten)))
+                gcm_el = sum(
+                    self.gaussian(
+                        cm_flatten[j], 
+                        sigma, 
+                        ri[i]
+                    ) for j in range(len(cm_flatten))
+                )
+
                 if np.absolute(gcm_el) < self.thld:
                     gcm_el = 0.0
                 gcm.append(gcm_el)
 
-            pcm = pcm.append(pd.DataFrame(np.array(gcm).reshape((1, fp_dim+2)),
-                                          columns=columns))
+            pcm = pd.concat(
+                [
+                    pcm, 
+                    pd.DataFrame(
+                        np.array(gcm).reshape((1, fp_dim+2)), 
+                        columns=columns
+                    )
+                ],
+                axis = 0
+            )
 
         if self.verbosity == 0:
             sys.stdout.write('\n')
@@ -220,8 +237,8 @@ class Fingerprint:
             self.data_loc, struct_df)
 
         # Ewald summation parameters
-        rcut = 4
-        gcut = 4
+        r_cut = 4
+        g_cut = 4
 
         columns = ['id', 'target'] + \
             ['pesm_'+str(i).zfill(4) for i in range(fp_dim)]
@@ -240,9 +257,17 @@ class Fingerprint:
 
             crystal = io.read(os.path.join(self.data_loc, str(v)))
 
-            esm = EwaldSumMatrix(n_atoms_max=n_atoms_max, permutation="none",
-                                 flatten=True)
-            esm_this = esm.create(crystal, rcut=rcut, gcut=gcut)
+            esm = EwaldSumMatrix(
+                n_atoms_max=n_atoms_max, 
+                permutation="none",
+            )
+
+            esm_this = esm.create(
+                crystal, 
+                r_cut=r_cut, 
+                g_cut=g_cut
+            )
+
             esm_all.append(esm_this)
 
         if self.verbosity == 0:
@@ -279,8 +304,18 @@ class Fingerprint:
                     gcm_el = 0.0
                 gcm.append(gcm_el)
 
-            pesm = pesm.append(pd.DataFrame(np.array(gcm).reshape((1, fp_dim+2)),
-                                            columns=columns))
+            pesm = pd.concat(
+                [
+                    pesm, 
+                    pd.DataFrame(
+                        np.array(gcm).reshape((1, fp_dim+2)),
+                        columns=columns
+                    )
+                ],
+                axis = 0
+            )
+            #pesm = pesm.append(pd.DataFrame(np.array(gcm).reshape((1, fp_dim+2)),
+            #                                columns=columns))
 
         if self.verbosity == 0:
             sys.stdout.write('\n')
@@ -356,8 +391,18 @@ class Fingerprint:
                     gcm_el = 0.0
                 gcm.append(gcm_el)
 
-            pcm = pcm.append(pd.DataFrame(np.array(gcm).reshape((1, fp_dim+2)),
-                                          columns=columns))
+            pcm = pd.concat(
+                [
+                    pcm, 
+                    pd.DataFrame(
+                        np.array(gcm).reshape((1, fp_dim+2)),
+                        columns=columns
+                    )
+                ], 
+                axis = 0
+            )
+            #pcm = pcm.append(pd.DataFrame(np.array(gcm).reshape((1, fp_dim+2)),
+            #                              columns=columns))
 
         if self.verbosity == 0:
             sys.stdout.write('\n')
@@ -426,11 +471,6 @@ class Fingerprint:
                 )],
                 axis=0
             )
-
-            #soap = pd.concat([soap, pd.DataFrame(np.array(this_soap).
-            #                                reshape((1, fp_dim+2)), columns=columns)], axis = 0)
-            #soap = soap.append(pd.DataFrame(np.array(this_soap).
-            #                                reshape((1, fp_dim+2)), columns=columns))
 
         if self.verbosity == 0:
             sys.stdout.write('\n')

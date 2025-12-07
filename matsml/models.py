@@ -50,10 +50,14 @@ class FCNN:
 
     def __init__(self, data_params, model_params):
 
+        #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+        os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+        os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"        # 0=all, 1=INFO off, 2=WARNING off, 3=ERROR only
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # optional
+
         import tf_keras as keras
         self.keras = keras
 
-        #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
         
         self.data_params = data_params
         self.model_params = model_params

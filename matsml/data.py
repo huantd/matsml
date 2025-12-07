@@ -31,8 +31,13 @@ class Datasets:
         self.git_data = 'https://raw.githubusercontent.com/huantd/huantd.github.io/main/data/' \
          
         sum_url = os.path.join(self.git_data, 'datasets.csv.gz')
-        self.datasets = pd.read_csv(io.BytesIO(requests.get(sum_url).content),
-                                    sep=",", compression="gzip", index_col=0, quotechar='"')
+        self.datasets = pd.read_csv(
+            io.BytesIO(requests.get(sum_url).content),
+            sep=",", 
+            compression="gzip", 
+            index_col=0, 
+            quotechar='"'
+        )
 
     def summary(self):
         """ Show what datasets available """
@@ -48,19 +53,26 @@ class Datasets:
             sel_row = self.datasets[self.datasets['dataname'] == dataset_name]
 
             if len(sel_row) > 0:
-                data_url = os.path.join(self.git_data, np.array(
-                    sel_row['filename']).astype(str)[0])
+                data_url = os.path.join(
+                    self.git_data, 
+                    np.array(
+                        sel_row['filename']).astype(str)[0]
+                )
+
                 fname = data_url.split('/')[-1]
-                os.system('wget -O ' + fname +
-                          ' --no-check-certificate ' + data_url)
+                os.system(
+                    'wget -q -O ' + fname + ' --no-check-certificate ' + data_url
+                )
+
                 if fname.startswith('fp_'):
                     print('  Data saved in ' + fname)
                 else:
                     os.system('tar -xf '+fname)
-                    print('  Data saved in '+dataset_name)
+                    print('  Data saved in ' + dataset_name)
             else:
-                raise ValueError('  ERROR: dataset '+str(dataset_name) +
-                                 ' not found.')
+                raise ValueError(
+                    '  ERROR: dataset '+str(dataset_name) + ' not found.'
+                )
 
 
 class ProcessData:
@@ -72,17 +84,38 @@ class ProcessData:
         self.data_params = data_params
 
         # List of ids that must be in training set
-        self.train_ids = get_key('train_ids', self.data_params, [])
+        self.train_ids = get_key(
+            'train_ids', 
+            self.data_params, 
+            []
+        )
 
         # Default x_scaling and y_scaling is minmax
-        self.x_scaling = get_key('x_scaling', self.data_params, 'minmax')
-        self.y_scaling = get_key('y_scaling', self.data_params, 'minmax')
+        self.x_scaling = get_key(
+            'x_scaling', 
+            self.data_params, 
+            'minmax'
+        )
 
-        # Default x_scaling and y_scaling is random
-        self.sampling = get_key('sampling', self.data_params, 'random')
+        self.y_scaling = get_key(
+            'y_scaling', 
+            self.data_params, 
+            'minmax'
+        )
+
+        # Default sampling is random
+        self.sampling = get_key(
+            'sampling', 
+            self.data_params, 
+            'random'
+        )
 
         # If we want to save the train/test spliting
-        self.save_split = get_key('save_split', self.data_params, True)
+        self.save_split = get_key(
+            'save_split', 
+            self.data_params, 
+            True
+        )
 
     def read_data(self):
         print('  ')
@@ -110,8 +143,12 @@ class ProcessData:
         comment_cols = self.data_params['comment_cols']
         self.comment_cols = comment_cols
 
-        data_fp = pd.read_csv(self.data_file, delimiter=',', header=0,
-                              low_memory=False)
+        data_fp = pd.read_csv(
+            self.data_file, 
+            delimiter=',', 
+            header=0,
+            low_memory=False
+        )
 
         self.data_size = len(data_fp)
 
@@ -121,8 +158,7 @@ class ProcessData:
             raise ValueError('  ERROR: There are duplicates in the ID columns')
 
         # list of columns for x
-        x_cols = [col for col in list(data_fp.columns) if col not in
-                  (y_cols+id_col+comment_cols)]
+        x_cols = [col for col in list(data_fp.columns) if col not in (y_cols + id_col + comment_cols)]
         self.x_cols = x_cols
 
         # list of selector cols
@@ -134,15 +170,29 @@ class ProcessData:
         self.sel_vals = sel_vals
 
         # x and y data for learning
-        self.y = data_fp[id_col + sel_cols + y_cols]
-        self.x = data_fp[id_col + x_cols]
+        self.y = data_fp[
+            id_col 
+            + sel_cols 
+            + y_cols
+        ]
+
+        self.x = data_fp[
+            id_col 
+            + x_cols
+        ]
 
         # fill nan by 0 in fingerprint
         self.x = self.x.fillna(0)
 
         # ser ntrains at 0.8 if this key not presents
         self.n_trains = int(
-            get_key('n_trains', self.data_params, 1.0) * self.data_size)
+            get_key(
+                'n_trains', 
+                self.data_params, 
+                0.8
+            ) * self.data_size
+        )
+
         self.n_tests = self.data_size - self.n_trains
 
         # Print some data parameters
@@ -221,25 +271,57 @@ class ProcessData:
             for sel in sel_cols:
                 y_sel = y[y[sel] == 1]
 
-                this_row = pd.DataFrame([np.mean(np.array(y_sel[col])) for col
-                                         in y_cols], columns=y_cols)
-                this_row['sel'] = sel
-                y_mean = pd.concat([y_mean, this_row], axis=0)
+                this_row = pd.DataFrame(
+                    [
+                        np.mean(np.array(y_sel[col])) for col in y_cols
+                    ], 
+                    columns = y_cols
+                )
 
-                this_row = pd.DataFrame([np.std(np.array(y_sel[col])) for col
-                                         in y_cols], columns=y_cols)
                 this_row['sel'] = sel
-                y_std = pd.concat([y_std, this_row], axis=0)
+                if y_mean is None or len(y_mean) == 0:
+                    y_mean = this_row.copy()
+                else:
+                    y_mean = pd.concat([y_mean, this_row], axis=0)
 
-                this_row = pd.DataFrame([np.amin(np.array(y_sel[col])) for col
-                                         in y_cols], columns=y_cols)
-                this_row['sel'] = sel
-                y_min = pd.concat([y_min, this_row], axis=0)
+                this_row = pd.DataFrame(
+                    [
+                        np.std(np.array(y_sel[col])) for col in y_cols
+                    ], 
+                    columns=y_cols
+                )
 
-                this_row = pd.DataFrame([np.amax(np.array(y_sel[col])) for col
-                                         in y_cols], columns=y_cols)
                 this_row['sel'] = sel
-                y_max = pd.concat([y_max, this_row], axis=0)
+                if y_std is None or len(y_std) == 0:
+                    y_std = this_row.copy()
+                else:
+                    y_std = pd.concat([y_std, this_row], axis=0)
+
+                this_row = pd.DataFrame(
+                    [
+                        np.amin(np.array(y_sel[col])) for col in y_cols
+                    ], 
+                    columns=y_cols
+                )
+
+                this_row['sel'] = sel
+                if y_min is None or len(y_min) == 0:
+                    y_min = this_row.copy()
+                else:
+                    y_min = pd.concat([y_min, this_row], axis=0)
+
+                this_row = pd.DataFrame(
+                    [
+                        np.amax(np.array(y_sel[col])) for col in y_cols
+                    ], 
+                    columns=y_cols
+                )
+
+                this_row['sel'] = sel
+                if y_max is None or len(y_max) == 0:
+                    y_max = this_row.copy()
+                else:
+                    y_max = pd.concat([y_max, this_row], axis=0)
 
             self.y_mean = y_mean
             self.y_std = y_std
@@ -250,48 +332,41 @@ class ProcessData:
             y_scaled[self.id_col] = y[self.id_col]
             y_scaled[sel_cols] = y[sel_cols]
 
-            for i, j, sel in ((a, b, c) for a in range(len(y)) for b in
-                              range(y_dim) for c in sel_cols):
+            for i, j, sel in ((a, b, c) for a in range(len(y)) for b in range(y_dim) for c in sel_cols):
                 this_row = y.iloc[i]
                 if this_row[sel].astype(int) == 1:
-                    ymean = float(y_mean.loc[y_mean['sel'] == sel][y_cols[j]])
-                    ystd = float(y_std.loc[y_std['sel'] == sel][y_cols[j]])
-                    ymin = float(y_min.loc[y_min['sel'] == sel][y_cols[j]])
-                    ymax = float(y_max.loc[y_max['sel'] == sel][y_cols[j]])
+                    ymean = y_mean.loc[y_mean['sel'] == sel, y_cols[j]].iloc[0]
+                    ystd = y_std.loc[y_std['sel'] == sel, y_cols[j]].iloc[0]
+                    ymin = y_min.loc[y_mean['sel'] == sel, y_cols[j]].iloc[0]
+                    ymax = y_max.loc[y_mean['sel'] == sel, y_cols[j]].iloc[0]
+
                     if str(self.y_scaling) == 'normalize':
-                        y_scaled.at[i, y_cols[j]] = (y.at[i, y_cols[j]]-ymean) /\
-                            ystd
+                        y_scaled.at[i, y_cols[j]] = (y.at[i, y_cols[j]]-ymean) / ystd
                     elif str(self.y_scaling) == 'minmax':
                         if ymax == ymin:
                             y_scaled.at[i, y_cols[j]] = 0
                         elif ymax > ymin:
-                            y_scaled.at[i, y_cols[j]] = (
-                                y.at[i, y_cols[j]]-ymin)/(ymax-ymin)
+                            y_scaled.at[i, y_cols[j]] = (y.at[i, y_cols[j]]-ymin)/(ymax-ymin)
                     elif str(self.y_scaling) == 'logpos':
                         y_scaled.at[i, y_cols[j]] = np.log(y.at[i, y_cols[j]])
                     elif str(self.y_scaling) == 'logfre':
-                        y_scaled.at[i, y_cols[j]] = np.log(
-                            y.at[i, y_cols[j]]-ymin+1)
+                        y_scaled.at[i, y_cols[j]] = np.log(y.at[i, y_cols[j]]-ymin+1)
                     elif str(self.y_scaling) == 'none':
                         y_scaled.at[i, y_cols[j]] = y.at[i, y_cols[j]]
 
             self.y_scaled = y_scaled
 
         elif len(sel_cols) == 0:
-            self.y_mean = pd.DataFrame([np.mean(np.array(y[col])) for col
-                                        in y_cols]).T
+            self.y_mean = pd.DataFrame([np.mean(np.array(y[col])) for col in y_cols]).T
             self.y_mean.columns = y_cols
 
-            self.y_std = pd.DataFrame([np.std(np.array(y[col])) for col
-                                       in y_cols]).T
+            self.y_std = pd.DataFrame([np.std(np.array(y[col])) for col in y_cols]).T
             self.y_std.columns = y_cols
 
-            self.y_min = pd.DataFrame([np.amin(np.array(y[col])) for col
-                                       in y_cols]).T
+            self.y_min = pd.DataFrame([np.amin(np.array(y[col])) for col in y_cols]).T
             self.y_min.columns = y_cols
 
-            self.y_max = pd.DataFrame([np.amax(np.array(y[col])) for col
-                                       in y_cols]).T
+            self.y_max = pd.DataFrame([np.amax(np.array(y[col])) for col in y_cols]).T
             self.y_max.columns = y_cols
 
             y_scaled = pd.DataFrame(columns=self.id_col+y_cols)
@@ -299,18 +374,18 @@ class ProcessData:
                 y_scaled[self.id_col] = y[self.id_col]
                 if str(self.y_scaling) == 'normalize':
                     delta_y = y.at[i, y_cols[j]]-self.y_mean.at[0, y_cols[j]]
-                    y_scaled.at[i, y_cols[j]] = delta_y / \
-                        self.y_std.at[0, y_cols[j]]
+                    y_scaled.at[i, y_cols[j]] = delta_y / self.y_std.at[0, y_cols[j]]
+
                 elif str(self.y_scaling) == 'minmax':
-                    delta_y = (self.y_max.at[0, y_cols[j]] -
-                               self.y_min.at[0, y_cols[j]])
-                    y_scaled.at[i, y_cols[j]] = (y.at[i, y_cols[j]] -
-                                                 self.y_min.at[0, y_cols[j]])/delta_y
+                    delta_y = (self.y_max.at[0, y_cols[j]] -  self.y_min.at[0, y_cols[j]])
+                    y_scaled.at[i, y_cols[j]] = (y.at[i, y_cols[j]] - self.y_min.at[0, y_cols[j]])/delta_y
+
                 elif str(self.y_scaling) == 'logpos':
                     y_scaled.at[i, y_cols[j]] = np.log(y.at[i, y_cols[j]])
+
                 elif str(self.y_scaling) == 'logfre':
-                    y_scaled.at[i, y_cols[j]] = np.log(
-                        y.at[i, y_cols[j]]-self.y_min.at[0, y_cols[j]]+1)
+                    y_scaled.at[i, y_cols[j]] = np.log(y.at[i, y_cols[j]]-self.y_min.at[0, y_cols[j]]+1)
+
                 elif str(self.y_scaling) == 'none':
                     y_scaled.at[i, y_cols[j]] = y.at[i, y_cols[j]]
 
@@ -338,11 +413,10 @@ class ProcessData:
         train_set_ids = [idx for idx in train_ids]
 
         if self.sampling == 'random':
-            for idx in scaled_data_red.sample(n=self.n_trains-len(train_ids),
-                                              random_state=42)[id_col[0]].tolist():
+            for idx in scaled_data_red.sample(n=self.n_trains - len(train_ids), random_state=42)[id_col[0]].tolist():
                 train_set_ids.append(idx)
-            test_set_ids = [idx for idx in scaled_data[id_col[0]].tolist()
-                            if idx not in train_set_ids]
+
+            test_set_ids = [idx for idx in scaled_data[id_col[0]].tolist() if idx not in train_set_ids]
 
         elif self.sampling == 'stratified':
             """ Stratified on a PCA-projected manifold"""
@@ -357,22 +431,19 @@ class ProcessData:
             x_pca = pca.fit_transform(data)
 
             # Do some statistics on the PCA trasformed data
-            statistic, xedges, yedges, binnumber = binned_statistic_2d(x_pca[:, 0],
-                                                                       x_pca[:, 1], data, statistic='count', bins=5)
+            statistic, xedges, yedges, binnumber = binned_statistic_2d(x_pca[:, 0], x_pca[:, 1], data, statistic='count', bins=5)
 
             # bin ID and number of entries in each bin
             bin_ids, bin_freqs = np.unique(binnumber, return_counts=True)
 
             # list of entries to be selected from each bin.
-            b_dists = [min(max(1, round(bf*self.n_trains/self.data_size)), bf)
-                       for bf in bin_freqs]
+            b_dists = [min(max(1, round(bf*self.n_trains/self.data_size)), bf) for bf in bin_freqs]
 
             # update self.n_trains. Need more work here to avoid this adjustment
             self.n_trains = sum(b_dists)
 
             for i in range(len(bin_ids)):
-                train_set_ids = train_set_ids+random.sample(list(np.where(
-                    binnumber == bin_ids[i])[0]), b_dists[i])
+                train_set_ids = train_set_ids+random.sample(list(np.where(binnumber == bin_ids[i])[0]), b_dists[i])
 
             test_set_ids = [idx for idx in scaled_data[id_col[0]].tolist()
                             if idx not in train_set_ids]
@@ -380,16 +451,13 @@ class ProcessData:
         else:
             raise ValueError('      ERROR: unavailable sampling')
 
-        self.train_set = scaled_data[scaled_data[id_col[0]].isin(
-            train_set_ids)]
+        self.train_set = scaled_data[scaled_data[id_col[0]].isin(train_set_ids)]
         self.test_set = scaled_data[scaled_data[id_col[0]].isin(test_set_ids)]
 
         # Save train/test split
         if self.save_split:
-            train_set_tmp = self.unscaled_data[self.unscaled_data[id_col[0]].isin(
-                train_set_ids)]
-            test_set_tmp = self.unscaled_data[self.unscaled_data[id_col[0]].isin(
-                test_set_ids)]
+            train_set_tmp = self.unscaled_data[self.unscaled_data[id_col[0]].isin(train_set_ids)]
+            test_set_tmp = self.unscaled_data[self.unscaled_data[id_col[0]].isin(test_set_ids)]
             train_set_tmp.to_csv('train_data.csv', index=False)
             test_set_tmp.to_csv('test_data.csv', index=False)
 
@@ -426,30 +494,35 @@ class ProcessData:
 
                 if y_scaled.at[idx1, sel] > 0.0:
                     if str(y_scaling) == 'minmax':
-                        ymax = float(y_max.loc[y_max['sel'] ==
-                                               sel][y_cols[jy]])
-                        ymin = float(y_min.loc[y_min['sel'] ==
-                                               sel][y_cols[jy]])
-                        y_org.at[idx0, y_md_cols[jy]] = y_scaled.at[idx1,
-                                                                    y_md_cols[jy]]*(ymax-ymin)+ymin
+                        ymax = float(y_max.loc[y_max['sel'] == sel][y_cols[jy]].iloc[0])
+                        ymin = float(y_min.loc[y_min['sel'] == sel][y_cols[jy]].iloc[0])
+                        y_org.at[idx0, y_md_cols[jy]] = (
+                            y_scaled.at[idx1,y_md_cols[jy]] * (ymax-ymin)
+                            + ymin
+                        )
+
                     elif str(y_scaling) == 'normalize':
-                        ymean = float(y_mean.loc[y_max['sel'] ==
-                                                 sel][y_cols[jy]])
-                        ystd = float(y_std.loc[y_min['sel'] ==
-                                               sel][y_cols[jy]])
-                        y_org.at[idx0, y_md_cols[jy]] = y_scaled.at[idx1,
-                                                                    y_md_cols[jy]]*ystd + ymean
+                        ymean = float(y_mean.loc[y_max['sel'] == sel][y_cols[jy]].iloc[0])
+                        ystd = float(y_std.loc[y_min['sel'] == sel][y_cols[jy]].iloc[0])
+                        y_org.at[idx0, y_md_cols[jy]] = (
+                            y_scaled.at[idx1, y_md_cols[jy]] * ystd 
+                            + ymean
+                        )
+
                     elif str(y_scaling) == 'logpos':
-                        y_org.at[idx0, y_md_cols[jy]] = np.exp(
-                            y_scaled.at[idx1, y_md_cols[jy]])
+                        y_org.at[idx0, y_md_cols[jy]] = np.exp(y_scaled.at[idx1, y_md_cols[jy]])
+
                     elif str(y_scaling) == 'logfre':
                         ymin = float(
                             y_min.loc[y_min['sel'] == sel][y_cols[jy]])
-                        y_org.at[idx0, y_md_cols[jy]] = np.exp(
-                            y_scaled.at[idx1, y_md_cols[jy]]) - 1 + ymin
+                        y_org.at[idx0, y_md_cols[jy]] = (
+                            np.exp(y_scaled.at[idx1, y_md_cols[jy]]) 
+                            - 1 
+                            + ymin
+                        )
+
                     elif str(y_scaling) == 'none':
-                        y_org.at[idx0, y_md_cols[jy]] = y_scaled.at[idx1,
-                                                                    y_md_cols[jy]]
+                        y_org.at[idx0, y_md_cols[jy]] = y_scaled.at[idx1, y_md_cols[jy]]
 
             y_unscaled = y_org.dropna(subset=y_md_cols)
 
@@ -458,50 +531,49 @@ class ProcessData:
                 # more work needed here
                 y_sel = y_unscaled.loc[y_org[sel] == 1]
                 for y_col in y_cols:
-                    this_rmse = np.sqrt(np.mean((np.array(y_sel[y_col]) -
-                                                 np.array(y_sel['md_'+y_col]))**2))
-                    print("      rmse", str(message).ljust(12), sel,
-                          str(y_col).ljust(16), round(this_rmse, 6))
+                    this_rmse = np.sqrt(
+                        np.mean(
+                            (np.array(y_sel[y_col]) - np.array(y_sel['md_' + y_col])) ** 2
+                        )
+                    )
+                    print("      rmse", str(message).ljust(12), sel, str(y_col).ljust(16), round(this_rmse, 6))
 
         elif len(sel_cols) == 0:                               # selecter columns
             for idn, jy in ((a, b) for a in ids_list for b in range(y_dim)):
                 idx0 = np.array(y_org[y_org[id_col[0]] == idn].index)[0]
-                idx1 = np.array(y_scaled[y_scaled[id_col[0]] ==
-                                         idn].index)[0]
+                idx1 = np.array(y_scaled[y_scaled[id_col[0]] == idn].index)[0]
                 if str(y_scaling) == 'minmax':
                     delta_y = (y_max.at[0, y_cols[jy]]-y_min.at[0, y_cols[jy]])
-                    y_org.at[idx0, y_md_cols[jy]] = y_scaled.at[idx1,
-                                                                y_md_cols[jy]]*delta_y+y_min.at[0, y_cols[jy]]
+                    y_org.at[idx0, y_md_cols[jy]] = (
+                        y_scaled.at[idx1,y_md_cols[jy]] 
+                        * delta_y 
+                        + y_min.at[0, y_cols[jy]]
+                    )
+
                     if len(yerr_md_cols) > 0:
-                        y_org.at[idx0, yerr_md_cols[jy]] = y_scaled.at[idx1,
-                                                                       yerr_md_cols[jy]]*delta_y
+                        y_org.at[idx0, yerr_md_cols[jy]] = y_scaled.at[idx1, yerr_md_cols[jy]] * delta_y
+
                 elif str(y_scaling) == 'normalize':
-                    y_org.at[idx0, y_md_cols[jy]] = (y_scaled.at[idx1,
-                                                                 y_md_cols[jy]]*y_std.at[0, y_cols[jy]]) + \
-                        y_mean.at[0, y_cols[jy]]
+                    y_org.at[idx0, y_md_cols[jy]] = (y_scaled.at[idx1, y_md_cols[jy]]*y_std.at[0, y_cols[jy]]) + y_mean.at[0, y_cols[jy]]
                     if len(yerr_md_cols) > 0:
-                        y_org.at[idx0, yerr_md_cols[jy]] = y_scaled.at[idx1,
-                                                                       yerr_md_cols[jy]]*y_std.at[0, y_cols[jy]]
+                        y_org.at[idx0, yerr_md_cols[jy]] = y_scaled.at[idx1,yerr_md_cols[jy]]*y_std.at[0, y_cols[jy]]
+
                 elif str(y_scaling) == 'logpos':
-                    y_org.at[idx0, y_md_cols[jy]] = np.exp(y_scaled.at[idx1,
-                                                                       y_md_cols[jy]])
+                    y_org.at[idx0, y_md_cols[jy]] = np.exp(y_scaled.at[idx1,y_md_cols[jy]])
+
                 elif str(y_scaling) == 'logfre':
-                    y_org.at[idx0, y_md_cols[jy]] = np.exp(y_scaled.at[idx1,
-                                                                       y_md_cols[jy]]) - 1 + y_min.at[0, y_cols[jy]]
+                    y_org.at[idx0, y_md_cols[jy]] = np.exp(y_scaled.at[idx1,y_md_cols[jy]]) - 1 + y_min.at[0, y_cols[jy]]
+
                 elif str(y_scaling) == 'none':
-                    y_org.at[idx0, y_md_cols[jy]] = y_scaled.at[idx1,
-                                                                y_md_cols[jy]]
+                    y_org.at[idx0, y_md_cols[jy]] = y_scaled.at[idx1, y_md_cols[jy]]
                     if len(yerr_md_cols) > 0:
-                        y_org.at[idx0, yerr_md_cols[jy]] = y_scaled.at[idx1,
-                                                                       yerr_md_cols[jy]]
+                        y_org.at[idx0, yerr_md_cols[jy]] = y_scaled.at[idx1, yerr_md_cols[jy]]
 
             y_unscaled = y_org.dropna(subset=y_md_cols)
 
             for y_col in y_cols:                                      # rmse_cv
-                this_rmse = np.sqrt(mean_squared_error(np.array(y_unscaled
-                                                                [y_col]), np.array(y_unscaled['md_'+y_col])))
-                print("       rmse", str(message).ljust(12), str(y_col).
-                      ljust(16), round(this_rmse, 6))
+                this_rmse = np.sqrt(mean_squared_error(np.array(y_unscaled[y_col]), np.array(y_unscaled['md_' + y_col])))
+                print("       rmse", str(message).ljust(12), str(y_col).ljust(16), round(this_rmse, 6))
 
         return y_unscaled
 
@@ -520,7 +592,9 @@ class ProcessData:
         self.scale_y()
 
         self.scaled_data = pd.concat(
-            [self.x_scaled, self.y_scaled[self.y_cols]], axis=1)
+            [self.x_scaled, self.y_scaled[self.y_cols]], axis=1
+        )
+
         self.unscaled_data = pd.concat([self.x, self.y[self.y_cols]], axis=1)
 
         self.y_md_cols = ['md_'+col for col in self.y_cols]
@@ -530,16 +604,28 @@ class ProcessData:
         self.split_train_test()
 
         data_dict = {
-            'id_col': self.id_col, 'x_cols': self.x_cols, 'y_cols': self.y_cols,
-            'sel_cols': self.sel_cols, 'n_trains': self.n_trains,
-            'n_tests': self.n_tests, 'train_set': self.train_set,
-            'test_set': self.test_set, 'x_scaling': self.x_scaling,
-            'xscaler': self.xscaler, 'x_scaled': self.x_scaled,
-            'y_scaling': self.y_scaling, 'y_mean': self.y_mean,
-            'y_std': self.y_std, 'y_max': self.y_max, 'y_min': self.y_min,
-            'y_org': self.y, 'y_scaled': self.y_scaled,
-            'y_md_cols': self.y_md_cols, 'yerr_md_cols': self.yerr_md_cols,
-            'data_size': self.data_size}
+            'id_col': self.id_col, 
+            'x_cols': self.x_cols, 
+            'y_cols': self.y_cols,
+            'sel_cols': self.sel_cols, 
+            'n_trains': self.n_trains,
+            'n_tests': self.n_tests, 
+            'train_set': self.train_set,
+            'test_set': self.test_set, 
+            'x_scaling': self.x_scaling,
+            'xscaler': self.xscaler, 
+            'x_scaled': self.x_scaled,
+            'y_scaling': self.y_scaling, 
+            'y_mean': self.y_mean,
+            'y_std': self.y_std, 
+            'y_max': self.y_max, 
+            'y_min': self.y_min,
+            'y_org': self.y, 
+            'y_scaled': self.y_scaled,
+            'y_md_cols': self.y_md_cols, 
+            'yerr_md_cols': self.yerr_md_cols,
+            'data_size': self.data_size
+        }
 
         return data_dict
 
@@ -550,8 +636,7 @@ class ProcessData:
 
         data_file = predict_params['data_file']
 
-        data_fp = pd.read_csv(data_file, delimiter=',',
-                              header=0, low_memory=False)
+        data_fp = pd.read_csv(data_file, delimiter=',', header=0, low_memory=False)
 
     def get_cv_datasets(self, train_set, x_cols, y_cols, train_cv, test_cv):
         """ 
@@ -562,13 +647,9 @@ class ProcessData:
         are returned for training the model
         """
 
-        x_cv_train = np.array(
-            train_set.iloc[train_cv][x_cols]).astype(np.float32)
-        x_cv_test = np.array(
-            train_set.iloc[test_cv][x_cols]).astype(np.float32)
-        y_cv_train = np.array(
-            train_set.iloc[train_cv][y_cols]).astype(np.float32)
-        y_cv_test = np.array(
-            train_set.iloc[test_cv][y_cols]).astype(np.float32)
+        x_cv_train = np.array(train_set.iloc[train_cv][x_cols]).astype(np.float32)
+        x_cv_test = np.array(train_set.iloc[test_cv][x_cols]).astype(np.float32)
+        y_cv_train = np.array(train_set.iloc[train_cv][y_cols]).astype(np.float32)
+        y_cv_test = np.array(train_set.iloc[test_cv][y_cols]).astype(np.float32)
 
         return x_cv_train, x_cv_test, y_cv_train, y_cv_test
