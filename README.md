@@ -1,9 +1,8 @@
-
-#matsml
+matsml
 
 Matsml is a comprehensive machine learning toolkit designed for materials science applications. It provides a set of powerful tools for data analysis, model development, and the discovery of novel materials using machine learning techniques.
 
-##Dependencies
+Dependencies
 
 To use matsml, the following packages are required:
  - NumPy: https://numpy.org/
@@ -16,35 +15,35 @@ To use matsml, the following packages are required:
  - Dscribe: https://singroup.github.io/dscribe/latest/index.html
  - Matplotlib: https://matplotlib.org/
 
-##Installation
+Installation
 
 To install matsml and its dependencies, follow the steps below:
 
-###Ensure that you have the latest version of pip, setuptools, and wheel:
+Ensure that you have the latest version of pip, setuptools, and wheel:
 
 ```bash
 pip install --upgrade pip setuptools wheel
 ```
 
-###Install the core dependencies:
+Install the core dependencies:
 
 ```bash
 pip install "numpy>=1.18" "pandas>=1.0" "scikit-learn>=0.22" "scipy>=1.1.0" "requests" "ipykernel"
 ```
 
-###If you require TensorFlow and related packages (such as Keras and TensorFlow Probability), install the extra dependencies:
+If you require TensorFlow and related packages (such as Keras and TensorFlow Probability), install the extra dependencies:
 
 ```bash
 pip install .[tf]
 ```
 
-###Finally, install matsml:
+Finally, install matsml:
 
 ```bash
 pip install .
 ```
 
-###If you want to use Jupyter Notebook, you may want to install the matsml IPython kernel by the following command and make sure to use the correct kernel 
+If you want to use Jupyter Notebook, you may want to install the matsml IPython kernel by the following command and make sure to use the correct kernel 
 
 ```bash
 python -m ipykernel install --user --name work --display-name "Python (matsml)"
