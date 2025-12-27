@@ -1,8 +1,10 @@
+
 #matsml
 
 Matsml is a comprehensive machine learning toolkit designed for materials science applications. It provides a set of powerful tools for data analysis, model development, and the discovery of novel materials using machine learning techniques.
 
 ##Dependencies
+
 To use matsml, the following packages are required:
  - NumPy: https://numpy.org/
  - Pandas: https://pandas.pydata.org/
@@ -15,6 +17,7 @@ To use matsml, the following packages are required:
  - Matplotlib: https://matplotlib.org/
 
 ##Installation
+
 To install matsml and its dependencies, follow the steps below:
 
 ###Ensure that you have the latest version of pip, setuptools, and wheel:
